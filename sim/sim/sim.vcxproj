@@ -144,6 +144,7 @@
     <ClCompile Include="simulator.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="main.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="simulator.h" />
   </ItemGroup>
