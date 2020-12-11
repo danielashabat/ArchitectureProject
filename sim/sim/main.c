@@ -18,8 +18,16 @@ int main(int argc, char* argv[]) {
 	
 	Reset_Reg(&reg1_o);
 	Reset_Reg(&reg1_n);
+	if (argc != ARGC_NUM) {
+		printf("ERROR: there is %d input arguments. (need %d input arguments)\n", argc, ARGC_NUM);
+		return 1;
+	}
+
 	imem1 = fopen(argv[1], "r");
-	if (imem1 == NULL) printf("cant open\n");
+	if (imem1 == NULL) {
+		printf("cant open\n");
+		return 1;
+	}
 	Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
 	
@@ -48,7 +56,7 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n)
 
 void Reset_Reg(reg* r)
 {
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < REG_NUM; i++)
 	{
 		r->reg[i] = 0;
 	}
@@ -76,7 +84,7 @@ void Reset_Reg(reg* r)
 
 void Sampling_Reg(reg* r_o, reg* r_n)
 {
-	for (int i = 0; i < 16; i++) r_o->reg[i] = r_n->reg[i];
+	for (int i = 0; i < REG_NUM; i++) r_o->reg[i] = r_n->reg[i];
 	r_o->pc = r_n->pc;
 	r_o->inst = r_n->inst;
 	r_o->alu0 = r_n->alu0;

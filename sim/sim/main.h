@@ -24,9 +24,11 @@
 #define SC 19
 #define HALT 20
 
+#define REG_NUM 16
+#define ARGC_NUM 2//need to include  'sim.exe'
 
 typedef struct {
-	int reg[16];
+	int reg[REG_NUM];
 	int pc;
 	int inst;
 	int alu0;
