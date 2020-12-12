@@ -15,6 +15,7 @@ stats2.txt stats3.txt
 */
 int main(int argc, char* argv[]) {
 	FILE* imem1 = NULL;
+	FILE *memin = NULL;
 	reg reg1_o, reg1_n;
 	
 	Reset_Reg(&reg1_o);
@@ -24,19 +25,30 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+	memin = fopen("memin.txt", "r");
 	imem1 = fopen(argv[1], "r");
-	if (imem1 == NULL) {
-		printf("cant open\n");
+	if ((imem1 == NULL )|| (memin==NULL)) {
+		printf("cant open one of the files\n");
 		return 1;
 	}
 
-	//Daniela debug:
+	////Daniela debug:
 	//CACHE cache;
+	//int data;
 	//reset_cache(&cache);
-	//cache.TSRAM[0xFF] = 0xFFFFFFF;
-	//return address_in_cache(0xFFFFF, &cache);
+	//InitialMainMemory(memin);
+	//cache.TSRAM[0xFF] = 0xFFFF;
+	//int cycles = 0;
+	//while (LoadWord(0x400, &data, &cache, 0)==0) {
+	//	printf("stall in cycle %d\n", cycles);
+	//	cycles++;
+	//}
+	//
+	//return 0;
+	////end Daniela Debug
+	
 
-	Simulator(imem1, &reg1_o, &reg1_n);
+	//Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
 	
 	return 0;

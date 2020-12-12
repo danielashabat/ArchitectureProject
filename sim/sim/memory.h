@@ -41,11 +41,13 @@ typedef struct Core {
 /*********************FUNCTIONS DECLARATION	*****************/
 int address_in_cache(int address, CACHE* cache);
 void reset_cache(CACHE *cache);
+void InitialMainMemory(FILE* memin);
 
 void GetDataFromCache(CACHE* cache, int address, int* data);
 
-int BusRd(CORE* core, int address);
-int GetDataFromMainMemory(CORE* core, int address);
+int LoadWord(int address, int* data, CACHE* cache, int core_index);
+void BusRd(int core_index, int address);
+int GetDataFromMainMemory( int address);
 void Flush(int address, int data);
 void UpdateCacheBlock(CACHE* cache);
 

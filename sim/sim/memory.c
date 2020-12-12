@@ -6,16 +6,25 @@
 #include "memory.h"
 #include "simulator.h"
 
-int MainMemory[MainMemorySize] = { 0 };
+int MainMemory[MainMemorySize] = {0 };
+
 short bus_origid = 0;//3 bits
 short bus_cmd = 0;//2 bit
 int bus_addr = 0;//20 bits
 int bus_data = 0;//32 bits
 
 
-int BusRd(CORE* core, int address) {
+void InitialMainMemory(FILE	*memin) {
+	int i = 0;
+	while (!feof(memin) && (i< MainMemorySize)) {
+		fscanf(memin, "%x\r\n", MainMemory + i);
+			i++;
+	}
+}
+
+void BusRd(int core_index, int address) {
 	//update bus
-	bus_origid = core->index;
+	bus_origid = core_index;
 	bus_cmd = BUSRD;
 	bus_addr = address;
 	bus_data = 0;
@@ -32,7 +41,7 @@ void Flush(int address, int data) {
 
 
 //return 1 if the function finished, otherwise 0
-int GetDataFromMainMemory(CORE* core, int address) {
+int GetDataFromMainMemory(int address) {
 	static timer = 0;
 	if (timer < 64) {
 		timer++;
@@ -41,6 +50,7 @@ int GetDataFromMainMemory(CORE* core, int address) {
 	else{
 		int data = MainMemory[address];
 		Flush(address, data);
+		timer = 0;//for another requests
 		return 1;
 	}
 }
@@ -48,25 +58,27 @@ int GetDataFromMainMemory(CORE* core, int address) {
 
 // the function return 1 if it finished it's command,
 //return 0 if not finished (need more cycles) and need to stall.
-int LoadWord(int address, int* data,CORE *core) {
+int LoadWord(int address, int* data,CACHE *cache, int core_index) {
 	static timer = 0;
 	
-		CACHE cache = core->cache;
-		if (address_in_cache(address, &cache)) {
-			GetDataFromCache(&cache, address, data);//get the data from the cache
+		if (address_in_cache(address, cache)) {
+			GetDataFromCache(cache, address, data);//get the data from the cache
+			printf("read hit!,address:%x data: %x\n",address, *data);
 			return 1;
 		}
 
 		//if address not on the cache, send a BusRd request on the bus
 	if (bus_cmd == NO_COMMAND) {//check if bus is free
-		BusRd(core, address);
-		GetDataFromMainMemory(core, address);
+		BusRd(core_index, address);
+		printf("ReadMiss!\n");
+		GetDataFromMainMemory(address);
 		return 0;
 	}
-	if ((bus_cmd != NO_COMMAND)  && (bus_origid == core->index)) {// if bus is busy and it the same core that sent the request
-			if (GetDataFromMainMemory(core, address)) {//check if the function finished
+	if ((bus_cmd != NO_COMMAND)  && (bus_origid == core_index)) {// if bus is busy and it the same core that sent the request
+			if (GetDataFromMainMemory(address)) {//check if the function finished
 				*data = bus_data;//get the data from bus
-				UpdateCacheBlock(&cache);
+				UpdateCacheBlock(cache);
+				printf("bus finished read command,address:%x ,data:%x\n", bus_addr, bus_data);
 				return 1;
 			}
 			else 
@@ -103,10 +115,12 @@ void UpdateCacheBlock(CACHE* cache) {
 	int mode = SHARED;
 
 	//update TSRAM
-	cache->TSRAM[index] = (mode << 12) || (tag);
+	cache->TSRAM[index] = (mode << 12)| (tag);
 
 	//update DSRAM
 	cache->DSRAM[index] = data;
+
+	printf("cache update in index: %d, TSRAM: %.4x, DSRAM: %x \n", index, cache->TSRAM[index], cache->DSRAM[index]);
 }
 
 
