@@ -31,12 +31,12 @@ typedef struct {
 	int reg[REG_NUM];
 	int pc;
 	int inst;
-	int alu0;
-	int alu1;
-	int aluout;
-	int rs_DE;
-	int rs_EM;
-	int rs_MW;
+	int alu0;//first input to ALU
+	int alu1;//second input to ALU
+	int aluout;//output of ALU
+	int rs_DE;// DEC/EXE
+	int rs_EM;// EXE/MEM
+	int rs_MW;// MEM/WB
 	int rt_DE;
 	int rt_EM;
 	int rt_MW;
