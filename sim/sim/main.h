@@ -1,4 +1,3 @@
-#pragma once
 #ifndef	MAIN_H
 #define MAIN_H
 
@@ -67,4 +66,4 @@ void WB(reg* r_o, reg* r_n);
 
 
 
-#endif #pragma once
+#endif 

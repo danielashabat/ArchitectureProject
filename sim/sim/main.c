@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "main.h"
+#include "memory.h"
 
 
 /*command line: sim.exe imem0.txt imem1.txt imem2.txt imem3.txt memin.txt memout.txt
@@ -28,6 +29,13 @@ int main(int argc, char* argv[]) {
 		printf("cant open\n");
 		return 1;
 	}
+
+	//Daniela debug:
+	//CACHE cache;
+	//reset_cache(&cache);
+	//cache.TSRAM[0xFF] = 0xFFFFFFF;
+	//return address_in_cache(0xFFFFF, &cache);
+
 	Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
 	
