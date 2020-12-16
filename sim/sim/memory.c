@@ -18,22 +18,23 @@ void sample_bus(){
 	bus_reg_old.bus_addr=bus_reg_new.bus_addr;
 	bus_reg_old.bus_data=bus_reg_new.bus_data;
 	bus_reg_old.bus_mode=bus_reg_new.bus_mode;
-
+	bus_reg_old.timer = bus_reg_new.timer;
 }
 
 void update_bus() {
 	//check for new request
 	if (bus_reg_old.bus_cmd == BUSRD || bus_reg_old.bus_cmd == BUSRDX) {
-		printf("-BUS request- command:%d, address: %d \n", bus_reg_old.bus_cmd, bus_reg_old.bus_addr);
+		printf("-BUS request- command:%d, address: 0x%08x from core: %d\n", bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
 		bus_reg_new.bus_mode = 1;//set bus mode to busy
 		bus_reg_new.timer = 0;
 		bus_reg_new.bus_cmd = 0;
+		return;
 	}
 
-	if (bus_reg_old.bus_mode = 1) {
+	if (bus_reg_old.bus_mode == 1) {
 		if (bus_reg_old.timer == 64) {//bus finish readimg from memory after 64 cycles
 			Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr]);
-			printf("-FLUSH request- data :%d, address: %d \n", MainMemory[bus_reg_old.bus_addr], bus_reg_old.bus_addr);
+			printf("-FLUSH - data :%d, address: %d \n", MainMemory[bus_reg_old.bus_addr], bus_reg_old.bus_addr);
 			bus_reg_new.bus_mode = 0;//set bus mode to free
 		}
 		else {
@@ -94,20 +95,6 @@ void InitialBus() {
 
 /*********************MAIN MEMORY FUNCTIONS*****************/
 
-//return 1 if the function finished, otherwise 0
-int GetDataFromMainMemory(int address) {
-	static timer = 0;
-	if (timer < 64) {
-		timer++;
-		return 0;
-	}
-	else {
-		int data = MainMemory[address];
-		Flush(address, data);
-		timer = 0;//for another requests
-		return 1;
-	}
-}
 
 void InitialMainMemory(FILE* memin) {
 	int i = 0;
@@ -125,7 +112,8 @@ DSRAM:each row is 32 bits long, represent the data of the address from the main 
 
 */
 
-void UpdateCacheBlock(CACHE* cache) {
+//update cache block by reading te bus lines
+void UpdateCacheBlock(CACHE* cache , int new_mode) {
 	//get data from the bus
 	if (bus_reg_old.bus_origid != 4) {
 		printf("ERROR:the data is not from bus!");
@@ -136,15 +124,14 @@ void UpdateCacheBlock(CACHE* cache) {
 
 	int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
 	int tag = address / CHACHE_SIZE;//get the tag of the address
-	int mode = SHARED;
 
 	//update TSRAM
-	cache->TSRAM[index] = (mode << 12)| (tag);
+	cache->TSRAM[index] = (new_mode << 12)| (tag);
 
 	//update DSRAM
 	cache->DSRAM[index] = data;
 
-	printf("cache update in index: %d, TSRAM: %.4x, DSRAM: %x \n", index, cache->TSRAM[index], cache->DSRAM[index]);
+	printf("cache update in index: %d, new row in TSRAM: %08x,new row in DSRAM: %08x \n", index, cache->TSRAM[index], cache->DSRAM[index]);
 }
 
 /*return 1 if cache hit, otherwise return*/
@@ -153,10 +140,25 @@ int GetDataFromCache(CACHE* cache, int address, int* data) {
 	if (address_in_cache(address,cache,&mode)) {
 		int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
 		*data = cache->DSRAM[index];//assign to data pointer to the data taken from cache 
-		printf("read hit!,address:%x data: %x\n", address, *data);
+		printf("read hit!address:0x%08x data: 0x%08x\n", address, *data);
 		return 1;//cache hit
 	}
-	printf("read miss!,address:%x\n", address);
+	printf("read miss! address: 0x%08x\n", address);
+	return 0;//cache miss
+}
+
+//check if data in cache in MODIFIED mode
+int GetDataFromCacheExclusive(CACHE* cache, int address, int* data) {
+	int mode;
+	if (address_in_cache(address, cache, &mode)) {
+		if (mode == MODIFIED) {
+			int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
+			*data = cache->DSRAM[index];//assign to data pointer to the data taken from cache 
+			printf("write hit!address:0x%08x data: 0x%08x\n", address, *data);
+			return 1;//cache hit
+		}
+	}
+	printf("write miss! address: 0x%08x\n", address);
 	return 0;//cache miss
 }
 

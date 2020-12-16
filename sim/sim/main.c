@@ -33,22 +33,29 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	////Daniela debug:
-	//CACHE cache;
-	//int data;
-	//reset_cache(&cache);
-	//InitialMainMemory(memin);
-	//cache.TSRAM[0xFF] = 0xFFFF;
-	//int cycles = 0;
-	//int new_status = LoadWord(0x400, &data, &cache, 0);
-	//while (new_status != DONE) {
-	//	printf("stall in cycle %d\n", cycles);
-	//	cycles++;
-	//}
-	//
-	//return 0;
-	////end Daniela Debug
-	//
+	//Daniela debug:
+	CORE core;
+	int data;
+	InitialCore(&core, 0);
+	InitialMainMemory(memin);
+	
+	(core.cache).TSRAM[0xFF] = 0xFFFF;
+	int cycles = 0;
+	int prev_status = DONE;
+
+	void InitialBus();
+	int new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
+	while (new_status != DONE) {
+		sample_bus();
+		printf("stall in cycle %d\n", cycles);
+		cycles++;
+		prev_status = new_status;
+		new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
+	}
+	
+	return 0;
+	//end Daniela Debug
+	
 
 	//Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);

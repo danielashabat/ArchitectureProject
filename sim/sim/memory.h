@@ -45,10 +45,9 @@ typedef struct {
 /*********************FUNCTIONS DECLARATION	*****************/
 int address_in_cache(int address, CACHE* cache, int *mode);
 void reset_cache(CACHE *cache);
-void InitialMainMemory(FILE* memin);
-
-/*return 1 if cache hit, otherwise return*/
 int GetDataFromCache(CACHE* cache, int address, int* data);
+int GetDataFromCacheExclusive(CACHE* cache, int address, int* data);
+void UpdateCacheBlock(CACHE* cache, int new_mode);
 
 void sample_bus();
 void update_bus();
@@ -56,9 +55,11 @@ void ReadBusLines(int* bus_origid, int* bus_cmd, int* bus_addr, int* bus_data);
 void InitialBus();
 void BusRd(int core_index, int address);
 void BusRdX(int core_index, int address);
-int GetDataFromMainMemory( int address);
 void Flush(int address, int data);
-void UpdateCacheBlock(CACHE* cache);
+
+void InitialMainMemory(FILE* memin);
+
+
 
 #endif 
 

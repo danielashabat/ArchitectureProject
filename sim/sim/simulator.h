@@ -24,8 +24,8 @@ typedef struct Core {
 /*********************FUNCTIONS DECLARATION	*****************/
 
 int LoadWord(int address, int* data, CORE* core, int prev_status);
-int StoreWord(int address, int data, CACHE* cache, int core_index);
+int StoreWord(int address, int* data, CORE* core, int prev_status);
 
-
+void InitialCore(CORE* core, int core_index);
 #endif 
 #pragma once
