@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "main.h"
 #include "memory.h"
+#include "simulator.h"
 
 
 /*command line: sim.exe imem0.txt imem1.txt imem2.txt imem3.txt memin.txt memout.txt
@@ -39,14 +40,15 @@ int main(int argc, char* argv[]) {
 	//InitialMainMemory(memin);
 	//cache.TSRAM[0xFF] = 0xFFFF;
 	//int cycles = 0;
-	//while (LoadWord(0x400, &data, &cache, 0)==0) {
+	//int new_status = LoadWord(0x400, &data, &cache, 0);
+	//while (new_status != DONE) {
 	//	printf("stall in cycle %d\n", cycles);
 	//	cycles++;
 	//}
 	//
 	//return 0;
 	////end Daniela Debug
-	
+	//
 
 	//Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
@@ -164,9 +166,14 @@ void EXE(reg* r_o, reg* r_n)
 
 void MEM(reg* r_o, reg* r_n)
 {
+	//LoadWord(r_o->rs_MW + r_o->rt_MW, &r_o->rd_MW, cache, 0); 
+
 	r_n->rs_MW = r_o->rs_EM;
 	r_n->rt_MW = r_o->rt_EM;
 	r_n->rd_MW = r_o->rd_EM;
+
+	
+
 	r_n->opcode_MW = r_o->opcode_EM;
 	r_n->data = r_o->aluout; // in the case that no memory opcode
 	return;

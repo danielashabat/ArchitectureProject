@@ -47,8 +47,10 @@ typedef struct {
 	int opcode_EM;
 	int opcode_MW;
 	int data;
-
 } reg;
+
+
+
 
 void Reset_Reg(reg* r);
 void Simulator(FILE* imem1, reg* r1_o, reg* r1_n);

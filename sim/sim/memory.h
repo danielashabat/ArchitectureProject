@@ -1,7 +1,7 @@
 #ifndef	MEMORY_H
 #define	MEMORY_H
 
-#include "main.h"
+
 //#include "simulator.h"
 /*this module includes all the functions and structs that belong to the main memory and the cache*/
 
@@ -20,7 +20,8 @@
 
 #define PC_MASK(PC) 0X3FF&PC
 
-typedef enum { NO_COMMAND=0, BUSRD=1, BUSRDX=2, FLUSH=3} bus_commands;
+
+typedef enum { NO_COMMAND = 0, BUSRD = 1, BUSRDX = 2, FLUSH = 3 } bus_commands;
 
 /*********************STRUCTS*****************/
 
@@ -29,24 +30,32 @@ typedef struct Cache {
 	int TSRAM[CHACHE_SIZE];
 }CACHE;
 
-typedef struct Core {
-	reg reg_old;
-	reg reg_new;
-	FILE* IMEM;
-	CACHE  cache;
-	int index;//core index {0-3}
-}CORE;
+typedef struct {
+	short bus_origid;//3 bits
+	short bus_cmd;//2 bit
+	int bus_addr;//20 bits
+	int bus_data;//32 bits
+	int bus_mode;// if 1: BUSY from previos command ,if 0:the bus is FREE
+	int timer;// when bus is busy the timer count the numer of cycles it busy
+}Bus_Reg;
+
+/*********************GLOBAL VARS	*****************/
 
 
 /*********************FUNCTIONS DECLARATION	*****************/
-int address_in_cache(int address, CACHE* cache);
+int address_in_cache(int address, CACHE* cache, int *mode);
 void reset_cache(CACHE *cache);
 void InitialMainMemory(FILE* memin);
 
-void GetDataFromCache(CACHE* cache, int address, int* data);
+/*return 1 if cache hit, otherwise return*/
+int GetDataFromCache(CACHE* cache, int address, int* data);
 
-int LoadWord(int address, int* data, CACHE* cache, int core_index);
+void sample_bus();
+void update_bus();
+void ReadBusLines(int* bus_origid, int* bus_cmd, int* bus_addr, int* bus_data);
+void InitialBus();
 void BusRd(int core_index, int address);
+void BusRdX(int core_index, int address);
 int GetDataFromMainMemory( int address);
 void Flush(int address, int data);
 void UpdateCacheBlock(CACHE* cache);

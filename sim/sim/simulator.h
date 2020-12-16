@@ -1,21 +1,31 @@
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include "memory.h"
-//#include "main.h"
-//
-///*********************MACROS*****************/
-// //PC have only 10 bits
-//
-///*********************STRUCTS*****************/
-//
-//
-////typedef struct Core {
-////	reg reg_old;
-////	reg reg_new;
-////	FILE *IMEM ;
-////	CACHE  cache;
-////	int index;//core index {0-3}
-////}CORE;
-//
-//#endif 
-//#pragma once
+#ifndef	SIMULATOR_H
+#define	SIMULATOR_H
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "memory.h"
+#include "main.h"
+
+
+/*********************MACROS*****************/
+typedef enum { WAITING = 0, DONE = 1, CACHE_MISS = 2 } MEM_STATUS;
+
+
+/*********************STRUCTS*****************/
+typedef struct Core {
+	reg reg_old;
+	reg reg_new;
+	FILE* IMEM;
+	CACHE  cache;
+	int index;//core index {0-3}
+}CORE;
+
+/*********************FUNCTIONS DECLARATION	*****************/
+
+int LoadWord(int address, int* data, CORE* core, int prev_status);
+int StoreWord(int address, int data, CACHE* cache, int core_index);
+
+
+#endif 
+#pragma once
