@@ -33,31 +33,31 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	//Daniela debug:
-	CORE core;
-	int data;
-	InitialCore(&core, 0);
-	InitialMainMemory(memin);
-	
-	(core.cache).TSRAM[0xFF] = 0xFFFF;
-	int cycles = 0;
-	int prev_status = DONE;
+	////Daniela debug:
+	//CORE core;
+	//int data;
+	//InitialCore(&core, 0);
+	//InitialMainMemory(memin);
+	//
+	//(core.cache).TSRAM[0xFF] = 0xFFFF;
+	//int cycles = 0;
+	//int prev_status = DONE;
 
-	void InitialBus();
-	int new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
-	while (new_status != DONE) {
-		sample_bus();
-		printf("stall in cycle %d\n", cycles);
-		cycles++;
-		prev_status = new_status;
-		new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
-	}
-	
-	return 0;
-	//end Daniela Debug
+	//void InitialBus();
+	//int new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
+	//while (new_status != DONE) {
+	//	sample_bus();
+	//	printf("stall in cycle %d\n", cycles);
+	//	cycles++;
+	//	prev_status = new_status;
+	//	new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
+	//}
+	//
+	//return 0;
+	////end Daniela Debug
 	
 
-	//Simulator(imem1, &reg1_o, &reg1_n);
+	Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
 	
 	return 0;
@@ -74,12 +74,13 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n)
 		EXE(r1_o, r1_n);
 		MEM(r1_o, r1_n);
 		WB(r1_o, r1_n);
-		Sampling_Reg(r1_o, r1_n);
 		printf("cycle %d\n", cycle_counter);
 		printr(r1_o);
+		Sampling_Reg(r1_o, r1_n);
+		
 		
 		cycle_counter++;
-		if (cycle_counter == 10) break; //for test
+		if (cycle_counter == 30) break; //for test.
 	}
 }
 
@@ -153,13 +154,64 @@ void DECODE(reg* r_o, reg* r_n) //not support on stalling and branch resulotion 
 	r_n->rs_DE = (r_o->inst & 0x000f0000) >>16 ;
 	r_n->rd_DE = (r_o->inst & 0x00f00000)>>20;
 	r_n->opcode_DE = (r_o->inst & 0xff000000)>>24;
-	if (r_n->rs_DE != 1) r_n->alu0 = r_o->reg[r_n->rs_DE];
-	else r_n->alu0 = r_n->reg[1];
-	if (r_n->rt_DE != 1) r_n->alu1 = r_o->reg[r_n->rt_DE];
-	else r_n->alu1 = r_n->reg[1];
-
+	if (Stall_Data_Hazard(r_o, r_n)) { //if stall due to data hazard
+		r_n->inst = r_o->inst; 
+		r_n->pc = r_o->pc;
+	}
+	else
+	{
+		if (r_n->rs_DE != 1) r_n->alu0 = r_o->reg[r_n->rs_DE];
+		else r_n->alu0 = r_n->reg[1];
+		if (r_n->rt_DE != 1) r_n->alu1 = r_o->reg[r_n->rt_DE];
+		else r_n->alu1 = r_n->reg[1];
+		if (r_n->opcode_DE >= BEQ && r_n->opcode_DE <= JAL) BranchResulotion(r_o, r_n); //handling beanch resulotion
+	}
 	return;
 }
+
+int Stall_Data_Hazard(reg* r_o, reg* r_n) //not finish
+{
+	if (r_n->opcode_DE >= ADD && r_n->opcode_DE <= LL)
+	{
+		if ((r_n->rs_DE == r_o->rd_DE) | (r_n->rs_DE == r_o->rd_EM) | (r_n->rs_DE == r_o->rd_MW)) return 1;
+		if ((r_n->rt_DE == r_o->rd_DE) | (r_n->rt_DE == r_o->rd_EM) | (r_n->rt_DE == r_o->rd_MW)) return 1;
+
+	}
+}
+
+
+
+void BranchResulotion(reg* r_o, reg* r_n)
+{
+	switch (r_n->opcode_DE)
+	{
+		case BEQ:
+			if (r_o->reg[r_n->rs_DE] == r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			break;
+		case BNE:
+			if (r_o->reg[r_n->rs_DE] != r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			break;
+		case BLT:
+			if (r_o->reg[r_n->rs_DE] < r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			break;
+		case BGT:
+			if (r_o->reg[r_n->rs_DE] > r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			break;
+		case BLE:
+			if (r_o->reg[r_n->rs_DE] <= r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			break;
+		case BGE:
+			if (r_o->reg[r_n->rs_DE] >= r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			break;
+		case JAL:
+			r_n->reg[15] = r_o->pc;
+			r_n->pc= (r_o->reg[r_n->rd_DE]) & 0x000003ff;
+			break;
+	
+	}
+	return;
+}
+
 
 void EXE(reg* r_o, reg* r_n)
 {

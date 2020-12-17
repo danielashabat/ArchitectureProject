@@ -63,6 +63,7 @@ void ALU(int* aluout, int alu0, int alu1, int opcode);
 void printr(reg* r);
 void MEM(reg* r_o, reg* r_n);
 void WB(reg* r_o, reg* r_n);
+void BranchResulotion(reg* r_o, reg* r_n);
 
 
 
