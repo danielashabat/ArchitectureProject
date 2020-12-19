@@ -53,6 +53,6 @@ int StoreWord(int address,//the address you want to read
 	CORE* core, //pointer to the core that running this proccess
 	int prev_status);//the previos status from the last run of LoadWord
 
-
+int UpdateOtherCore(CORE* core);
 #endif 
 #pragma once

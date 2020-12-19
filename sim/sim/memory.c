@@ -33,7 +33,7 @@ void update_bus() {
 
 	if (bus_reg_old.bus_mode == 1) {
 		if (bus_reg_old.timer == 64) {//bus finish readimg from memory after 64 cycles
-			Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr]);
+			Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr],4);
 			printf("-FLUSH - data :%d, address: %d \n", MainMemory[bus_reg_old.bus_addr], bus_reg_old.bus_addr);
 			bus_reg_new.bus_mode = 0;//set bus mode to free
 		}
@@ -43,6 +43,10 @@ void update_bus() {
 			bus_reg_new.bus_addr = bus_reg_old.bus_addr;
 		}
 	}
+}
+
+void abort_bus() {
+	bus_reg_new.bus_mode = 0;//set bus mode to free
 }
 
 void ReadBusLines(int * bus_origid,int * bus_cmd, int *bus_addr, int *bus_data){
@@ -69,9 +73,9 @@ void BusRdX(int core_index, int address) {
 	bus_reg_new.bus_data = 0;
 }
 
-void Flush(int address, int data) {
+void Flush(int address, int data, int bus_origid) {
 	//update bus
-	bus_reg_new.bus_origid = 4;//main memory 
+	bus_reg_new.bus_origid = bus_origid; 
 	bus_reg_new.bus_cmd = FLUSH;
 	bus_reg_new.bus_addr = address;
 	bus_reg_new.bus_data = data;
@@ -148,6 +152,7 @@ int GetDataFromCache(CACHE* cache, int address, int* data) {
 }
 
 //check if data in cache in MODIFIED mode
+//return 1 if the data in cache in M mode, otherewise return 0
 int GetDataFromCacheExclusive(CACHE* cache, int address, int* data) {
 	int mode;
 	if (address_in_cache(address, cache, &mode)) {
@@ -207,3 +212,4 @@ void WriteToCache(CACHE *cache, int address, int data) {
 	printf("cache update in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
 	return;
 }
+

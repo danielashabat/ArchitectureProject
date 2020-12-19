@@ -54,11 +54,12 @@ void WriteToCache(CACHE* cache, int address, int data);
 
 void sample_bus();
 void update_bus();
+void abort_bus();
 void ReadBusLines(int* bus_origid, int* bus_cmd, int* bus_addr, int* bus_data);
 void InitialBus();
 void BusRd(int core_index, int address);
 void BusRdX(int core_index, int address);
-void Flush(int address, int data);
+void Flush(int address, int data, int bus_origid);
 
 void InitialMainMemory(FILE* memin);
 
