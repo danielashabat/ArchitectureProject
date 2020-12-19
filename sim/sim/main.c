@@ -33,31 +33,33 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	////Daniela debug:
-	//CORE core;
-	//int data;
-	//InitialCore(&core, 0);
-	//InitialMainMemory(memin);
-	//
-	//(core.cache).TSRAM[0xFF] = 0xFFFF;
-	//int cycles = 0;
-	//int prev_status = DONE;
+	//Daniela debug:
+	CORE core;
+	int data;
+	InitialCore(&core, 0);
+	InitialMainMemory(memin);
+	
+	int cycles = 0;
+	int prev_status = DONE;//status need to be register!
 
-	//void InitialBus();
-	//int new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
-	//while (new_status != DONE) {
-	//	sample_bus();
-	//	printf("stall in cycle %d\n", cycles);
-	//	cycles++;
-	//	prev_status = new_status;
-	//	new_status = LoadWord(0x400, &data, &(core.cache), prev_status);
-	//}
-	//
-	//return 0;
-	////end Daniela Debug
+	void InitialBus();
+	int new_status = StoreWord(0x400,0xCAFE, &core, prev_status);
+	while (new_status != DONE) {
+		sample_bus();
+		printf("stall in cycle %d\n", cycles);
+		cycles++;
+		prev_status = new_status;
+		new_status = StoreWord(0x400, 0xCAFE, &core, prev_status);;
+	}
+	prev_status = new_status;
+	LoadWord(0x400,&data,&core, prev_status);
+	printf("the new data is: 0x%08x\n", data);
+
+	return 0;
+	//end Daniela Debug
 	
 
-	Simulator(imem1, &reg1_o, &reg1_n);
+	//Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
 	
 	return 0;

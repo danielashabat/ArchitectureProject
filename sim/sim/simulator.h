@@ -18,14 +18,14 @@ typedef struct Core {
 	reg reg_new;
 	FILE* IMEM;
 	CACHE  cache;
-	int index;//core index {0-3}
+	int id;//core index {0-3}
 }CORE;
 
 /*********************FUNCTIONS DECLARATION	*****************/
 
 int LoadWord(int address, int* data, CORE* core, int prev_status);
-int StoreWord(int address, int* data, CORE* core, int prev_status);
+int StoreWord(int address, int new_data, CORE* core, int prev_status);
 
-void InitialCore(CORE* core, int core_index);
+void InitialCore(CORE* core, int id_core);
 #endif 
 #pragma once

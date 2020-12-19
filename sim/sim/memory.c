@@ -105,15 +105,15 @@ void InitialMainMemory(FILE* memin) {
 }
 
 /*********************CACHE FUNCTIONS*****************/
-/*cache: the cache is in size of 256 rows,
+/*cache: the cache is in size of 256 rows (TSRAM and DSRAM),
 pysical address is 20 bits long. we divide the bits in the following way: [19:8]represent the tag block, [7:0] represent the index of block 
 TSRAM: each row has 32 bits : [13:12]is MSI bits (state of address), [11:0] is Tag bits . (rest of the bits are zero)
-DSRAM:each row is 32 bits long, represent the data of the address from the main memory(the number of line is the address) 
+DSRAM:each row is 32 bits long, represent the data of the address from the main memory(the number of line is the index of the address) 
 
 */
 
-//update cache block by reading te bus lines
-void UpdateCacheBlock(CACHE* cache , int new_mode) {
+//update cache block by reading the bus lines
+void UpdateCacheFromBus(CACHE* cache , int new_mode) {
 	//get data from the bus
 	if (bus_reg_old.bus_origid != 4) {
 		printf("ERROR:the data is not from bus!");
@@ -166,8 +166,8 @@ int address_in_cache(int address, CACHE *cache , int *mode) {
 	int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
 	int tag = address/CHACHE_SIZE;//get the tag of the address
 
-	int tag_in_cache = (cache->TSRAM[index]) % TAG_BITS;//get the Tag bits (12 first bits) from cache in the same index  
-	*mode = (cache->TSRAM[index]) / TAG_BITS;// get the state of address
+	int tag_in_cache = TAG_BITS(cache->TSRAM[index]);//get the Tag bits (12 first bits) from cache in the same index  
+	*mode = MSI_BITS(cache->TSRAM[index]);// get the state of address
 
 	//debug message
 	//printf("the tag in cache is %x, and the tag of the address is: %x, the state is %x", tag_in_cache, tag,state_of_address);
@@ -178,13 +178,32 @@ int address_in_cache(int address, CACHE *cache , int *mode) {
 	return 0; //address not in cache
 }
 
-void reset_cache(CACHE *cache) {
+void reset_cache(CACHE *cache, int id) {
 	for (int i = 0; i < CHACHE_SIZE; i++)
 	{
-		cache->TSRAM[i] = 0;
-		cache->DSRAM[i] = 0;
+		cache->TSRAM[i] = (unsigned int) 0;
+		cache->DSRAM[i] = (unsigned int)0;
 	}
+	cache->id = id;
 }
 
+/*this function is used in StoreWord for writing a new data to a specific address
+this functon assume the relevant block's address is already in cache in MODIFIED state.(TSRAM need to be checked previous using this function))*/
+void WriteToCache(CACHE *cache, int address, int data) {
 
+	int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
+	int tag = address / CHACHE_SIZE;//get the tag of the address
+	int tag_in_cache = TAG_BITS(cache->TSRAM[index]);
+	int mode_in_cache = MSI_BITS(cache->TSRAM[index]);
+	//check tag and mode in TSRAM
+	if ((tag_in_cache != tag) || (mode_in_cache != MODIFIED))
+	{
+		printf("ERROR: can't write to cache! block is not in cache or not in 'M' mode \n");
+		return;
+	}
 
+		//update DSRAM
+	cache->DSRAM[index] = data;
+	printf("cache update in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
+	return;
+}

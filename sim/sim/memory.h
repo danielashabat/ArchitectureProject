@@ -11,7 +11,8 @@
 #define MainMemorySize 1048576//equal to 2^20
 #define CHACHE_SIZE 256
 
-#define TAG_BITS 4096 //12 first bits
+#define TAG_BITS(TSRAM_ROW)  (TSRAM_ROW&0xFFF) //return 12 first bits
+#define MSI_BITS(TSRAM_ROW)   (TSRAM_ROW>>12) //return TSRAM_ROW[13:12]  bits
 
 //block modes in cache
 #define INVALID 0
@@ -26,8 +27,9 @@ typedef enum { NO_COMMAND = 0, BUSRD = 1, BUSRDX = 2, FLUSH = 3 } bus_commands;
 /*********************STRUCTS*****************/
 
 typedef struct Cache {
-	int DSRAM[CHACHE_SIZE];
-	int TSRAM[CHACHE_SIZE];
+	unsigned int DSRAM[CHACHE_SIZE];
+	unsigned int TSRAM[CHACHE_SIZE];
+	int id;
 }CACHE;
 
 typedef struct {
@@ -44,10 +46,11 @@ typedef struct {
 
 /*********************FUNCTIONS DECLARATION	*****************/
 int address_in_cache(int address, CACHE* cache, int *mode);
-void reset_cache(CACHE *cache);
+void reset_cache(CACHE* cache, int id);
 int GetDataFromCache(CACHE* cache, int address, int* data);
 int GetDataFromCacheExclusive(CACHE* cache, int address, int* data);
-void UpdateCacheBlock(CACHE* cache, int new_mode);
+void UpdateCacheFromBus(CACHE* cache, int new_mode);
+void WriteToCache(CACHE* cache, int address, int data);
 
 void sample_bus();
 void update_bus();

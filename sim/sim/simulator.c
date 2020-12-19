@@ -24,7 +24,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 		//if address not on the cache, send a BusRd request on the bus
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == NO_COMMAND) {//check if bus is free
-			BusRd(core->index, address);//update bus 
+			BusRd(core->id, address);//update bus 
 			return WAITING;
 		}
 		else 
@@ -35,7 +35,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == FLUSH) {
 		*data = bus_data;
-		UpdateCacheBlock(cache,SHARED);//update in cache in SHARE mode
+		UpdateCacheFromBus(cache,SHARED);//update in cache in SHARE mode
 		return DONE; }//reading from main memory complete!
 		else return WAITING; //still need to wait
 		break;
@@ -44,16 +44,16 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 }
 
 // the function return the new status of the memory  { WAITING = 0, DONE = 1, CACHE_MISS = 2 }
-int StoreWord(int address, int* data, CORE* core, int prev_status) {
+int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 	CACHE* cache = &(core->cache);
 	int ret_val;
 	int bus_origid, bus_cmd, bus_addr, bus_data;
 	switch (prev_status)
 	{
 	case DONE:
-		ret_val = GetDataFromCacheExclusive(cache, address, data);
-		if (ret_val == 1) { 
-			//write to cache
+		ret_val = GetDataFromCacheExclusive(cache, address, new_data);
+		if (ret_val == 1) { //if the address in cache in MODIFIED mode. write to cache
+			WriteToCache(cache, address, new_data);
 			return DONE; }
 		else return CACHE_MISS;
 		break;
@@ -63,7 +63,7 @@ int StoreWord(int address, int* data, CORE* core, int prev_status) {
 		//if address not on the cache, send a BusRdX request on the bus
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == NO_COMMAND) {//check if bus is free
-			BusRdX(core->index, address);//update bus 
+			BusRdX(core->id, address);//update bus 
 			return WAITING;
 		}
 		else
@@ -74,9 +74,8 @@ int StoreWord(int address, int* data, CORE* core, int prev_status) {
 	case WAITING:
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == FLUSH) {
-			*data = bus_data;
-			UpdateCacheBlock(cache,MODIFIED);//update in cache in MODIFIED mode
-			//write to cache
+			UpdateCacheFromBus(cache,MODIFIED);//update in cache in MODIFIED mode
+			WriteToCache(cache, address, new_data);
 			return DONE;
 		}//writing  complete!
 		else return WAITING; //still need to wait
@@ -86,7 +85,7 @@ int StoreWord(int address, int* data, CORE* core, int prev_status) {
 }
 
 
-void InitialCore(CORE *core,int core_index) {
-	core->index = core_index;
-	reset_cache(&core->cache);
+void InitialCore(CORE *core,int id_core) {
+	core->id = id_core;
+	reset_cache(&core->cache, id_core);
 }
