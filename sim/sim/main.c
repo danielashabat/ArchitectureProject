@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
 	int cycles = 0;
 	int prev_status = DONE;//status need to be register!
 
-	void InitialBus();//reset the bus lines
+	InitialBus();//reset the bus lines
 	int new_status = StoreWord(0x400,0xCAFE, &core, prev_status);
 	while (new_status != DONE) {
 		sample_bus();//sample and update the bus lines 
