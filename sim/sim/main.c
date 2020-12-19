@@ -36,16 +36,16 @@ int main(int argc, char* argv[]) {
 	//Daniela debug:
 	CORE core;
 	int data;
-	InitialCore(&core, 0);
-	InitialMainMemory(memin);
+	InitialCore(&core, 0);//reset the core
+	InitialMainMemory(memin);//read the memory from memin file and update MainMemory array
 	
 	int cycles = 0;
 	int prev_status = DONE;//status need to be register!
 
-	void InitialBus();
+	void InitialBus();//reset the bus lines
 	int new_status = StoreWord(0x400,0xCAFE, &core, prev_status);
 	while (new_status != DONE) {
-		sample_bus();
+		sample_bus();//sample and update the bus lines 
 		printf("stall in cycle %d\n", cycles);
 		cycles++;
 		prev_status = new_status;
