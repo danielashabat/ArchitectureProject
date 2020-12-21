@@ -33,31 +33,40 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	//Daniela debug:
-	CORE core;
-	int data;
-	InitialCore(&core, 0);//reset the core
-	InitialMainMemory(memin);//read the memory from memin file and update MainMemory array
-	
-	int cycles = 0;
-	int prev_status = DONE;//status need to be register!
+	////Daniela debug:
+	//CORE core;
+	//int data;
+	//InitialCore(&core, 0);//reset the core
+	//InitialMainMemory(memin);//read the memory from memin file and update MainMemory array
+	//
+	//int cycles = 0;
+	//int prev_status = DONE;//status need to be register!
 
-	InitialBus();//reset the bus lines
-	int new_status = StoreWord(0x400,0xCAFE, &core, prev_status);
-	while (new_status != DONE) {
-		sample_bus();//sample and update the bus lines 
-		printf("stall in cycle %d\n", cycles);
-		cycles++;
-		prev_status = new_status;
-		new_status = StoreWord(0x400, 0xCAFE, &core, prev_status);;
-	}
-	prev_status = new_status;
-	LoadWord(0x400,&data,&core, prev_status);
-	printf("the new data is: 0x%08x\n", data);
+	//InitialBus();//reset the bus lines
+	//int new_status = StoreWord(0x400, 0xcafe, &core, prev_status);
+	//while (new_status != DONE) {
+	//	sample_bus();//sample and update the bus lines 
+	//	printf("stall in cycle %d\n", cycles);
+	//	
+	//	prev_status = new_status;
+	//	new_status = StoreWord(0x400, 0xcafe, &core, prev_status);
+	//	cycles++;
+	//}
+	//prev_status = new_status;
+	//new_status = LoadWord(0x800, &data, &core, prev_status);
+	//while (new_status != DONE) {
+	//	sample_bus();//sample and update the bus lines 
+	//	printf("stall in cycle %d\n", cycles);
+	//	
+	//	prev_status = new_status;
+	//	new_status = LoadWord(0x400, &data, &core, prev_status);
+	//	cycles++;
+	//}
+	///*printf("the new data is: 0x%08x\n", data);*/
 
-	return 0;
-	//end Daniela Debug
-	
+	//return 0;
+	////end Daniela Debug
+	//
 
 	//Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);

@@ -5,9 +5,9 @@
 
 #include "memory.h"
 
-int MainMemory[MainMemorySize] = { 0 };
-Bus_Reg bus_reg_old;
-Bus_Reg bus_reg_new;
+static int MainMemory[MainMemorySize] = { 0 };
+static Bus_Reg bus_reg_old;
+static Bus_Reg bus_reg_new;
 
 
 /*********************BUS FUNCTIONS*****************/
@@ -30,23 +30,42 @@ void update_bus() {
 		bus_reg_new.bus_cmd = 0;
 		return;
 	}
+	//check for flush request from one of the cores
+	if (bus_reg_old.bus_cmd ==FLUSH && (bus_reg_old.bus_origid!=4)) {
+		printf("-FLUSH request- data:%d, address: 0x%08x from core: %d\n", bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		bus_reg_new.bus_mode = 2;//set bus mode to busy
+		bus_reg_new.timer = 0;
+		bus_reg_new.bus_cmd = 0;
+	}
 
-	if (bus_reg_old.bus_mode == 1) {
-		if (bus_reg_old.timer == 64) {//bus finish readimg from memory after 64 cycles
-			Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr],4);
-			printf("-FLUSH - data :%d, address: %d \n", MainMemory[bus_reg_old.bus_addr], bus_reg_old.bus_addr);
+	//handle with busRd/BuesRdX/FLUSH
+	if (bus_reg_old.bus_mode != 0) {
+		if (bus_reg_old.timer == 64) {//bus finish reading from memory after 64 cycles
+			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
+				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
+				printf("-FLUSH - data :%d, address: %d \n", MainMemory[bus_reg_old.bus_addr], bus_reg_old.bus_addr);
+			}
+			else printf("finish updating the main memory!\n");
 			bus_reg_new.bus_mode = 0;//set bus mode to free
 		}
 		else {
 			bus_reg_new.timer++;//+1 timer
-			bus_reg_new.bus_mode = 1;
+			bus_reg_new.bus_mode = bus_reg_old.bus_mode;
 			bus_reg_new.bus_addr = bus_reg_old.bus_addr;
 		}
 	}
+	if ((bus_reg_old.bus_cmd == FLUSH) && (bus_reg_old.bus_origid == 4)) {//if flush from bus in the last cycle
+		bus_reg_new.bus_mode = 0;//set bus mode to free
+		bus_reg_new.bus_cmd = 0;
+	}
 }
 
-void abort_bus() {
-	bus_reg_new.bus_mode = 0;//set bus mode to free
+//void abort_bus() {
+//	bus_reg_new.bus_mode = 0;//set bus mode to free
+//}
+
+int bus_is_busy() {
+	return (bus_reg_old.bus_cmd || bus_reg_old.bus_mode);
 }
 
 void ReadBusLines(int * bus_origid,int * bus_cmd, int *bus_addr, int *bus_data){
@@ -107,6 +126,14 @@ void InitialMainMemory(FILE* memin) {
 		i++;
 	}
 }
+
+void write_block_to_main_memory(CACHE* cache, int index) {
+	int data = cache->DSRAM[index];
+	int tag_bits = TAG_BITS(cache->TSRAM[index]);
+	int address = tag_bits << 12 | index;
+	Flush(address, data, cache->id);
+}
+
 
 /*********************CACHE FUNCTIONS*****************/
 /*cache: the cache is in size of 256 rows (TSRAM and DSRAM),

@@ -9,7 +9,7 @@
 
 
 /*********************MACROS*****************/
-typedef enum { WAITING = 0, DONE = 1, CACHE_MISS = 2 } MEM_STATUS;
+typedef enum { WAITING = 0, DONE = 1, CACHE_MISS = 2 , CONFLICT_MISS=3} MEM_STATUS;
 
 
 /*********************STRUCTS*****************/
@@ -53,6 +53,6 @@ int StoreWord(int address,//the address you want to read
 	CORE* core, //pointer to the core that running this proccess
 	int prev_status);//the previos status from the last run of LoadWord
 
-int UpdateOtherCore(CORE* core);
+int SNOOPING(CORE* core);
 #endif 
 #pragma once
