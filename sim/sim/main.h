@@ -47,11 +47,13 @@ typedef struct {
 	int opcode_EM;
 	int opcode_MW;
 	int data;
+	int status; //status of memory, 0 if avalable, 1 otherwise.
 } reg;
 
 
 
-
+int Stall_Data_Hazard(reg* r_o, reg* r_n);
+int Changing_opcode_list(int opcode);
 void Reset_Reg(reg* r);
 void Simulator(FILE* imem1, reg* r1_o, reg* r1_n);
 void Sampling_Reg(reg* r_o, reg* r_n);

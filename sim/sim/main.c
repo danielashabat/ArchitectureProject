@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	////Daniela debug:
+	//Daniela debug:
 	//CORE core;
 	//int data;
 	//InitialCore(&core, 0);//reset the core
@@ -43,32 +43,23 @@ int main(int argc, char* argv[]) {
 	//int prev_status = DONE;//status need to be register!
 
 	//InitialBus();//reset the bus lines
-	//int new_status = StoreWord(0x400, 0xcafe, &core, prev_status);
+	//int new_status = StoreWord(0x400,0xCAFE, &core, prev_status);
 	//while (new_status != DONE) {
 	//	sample_bus();//sample and update the bus lines 
 	//	printf("stall in cycle %d\n", cycles);
-	//	
-	//	prev_status = new_status;
-	//	new_status = StoreWord(0x400, 0xcafe, &core, prev_status);
 	//	cycles++;
+	//	prev_status = new_status;
+	//	new_status = StoreWord(0x400, 0xCAFE, &core, prev_status);;
 	//}
 	//prev_status = new_status;
-	//new_status = LoadWord(0x800, &data, &core, prev_status);
-	//while (new_status != DONE) {
-	//	sample_bus();//sample and update the bus lines 
-	//	printf("stall in cycle %d\n", cycles);
-	//	
-	//	prev_status = new_status;
-	//	new_status = LoadWord(0x400, &data, &core, prev_status);
-	//	cycles++;
-	//}
-	///*printf("the new data is: 0x%08x\n", data);*/
+	//LoadWord(0x400,&data,&core, prev_status);
+	//printf("the new data is: 0x%08x\n", data);
 
 	//return 0;
-	////end Daniela Debug
-	//
+	//end Daniela Debug
+	
 
-	//Simulator(imem1, &reg1_o, &reg1_n);
+	Simulator(imem1, &reg1_o, &reg1_n);
 	fclose(imem1);
 	
 	return 0;
@@ -78,6 +69,7 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n)
 {
 	int flag1=1;
 	int cycle_counter = 1;
+	int continue_flag1 = 1; // will use for halt
 	while (1)
 	{
 		FETCH(imem1, r1_o, r1_n);
@@ -120,6 +112,7 @@ void Reset_Reg(reg* r)
 	r->opcode_EM = 0;
 	r->opcode_MW = 0;
 	r->data = 0;
+	r->status = 0;
 	return;
 }
 
@@ -145,6 +138,7 @@ void Sampling_Reg(reg* r_o, reg* r_n)
 	r_o->opcode_EM = r_n->opcode_EM;
 	r_o->opcode_MW = r_n->opcode_MW;
 	r_o->data = r_n->data;
+	r_o->status = r_n->status;
 	return;
 }
 
@@ -152,15 +146,15 @@ void FETCH(FILE *imem, reg* r_o, reg* r_n)
 {
 	
 	Jump_to_PC(imem, r_o->pc);
-	//printf("doing Fetch to pc= %d\n", r_o->pc); 
+	printf("doing Fetch to pc= %d\n", r_o->pc); 
 	fscanf(imem, "%08x\n", &r_n->inst);
 	r_n->pc = r_o->pc + 1;
 }
 
-void DECODE(reg* r_o, reg* r_n) //not support on stalling and branch resulotion yet
+void DECODE(reg* r_o, reg* r_n) 
 {
 	r_n->reg[1] = r_o->inst & 0x00000fff;
-	//printf("doing DECODE to inst= %08x\n", r_o->inst);
+	printf("doing DECODE to inst= %08x\n", r_o->inst);
 	r_n->rt_DE = (r_o->inst & 0x0000f000) >> 12;
 	r_n->rs_DE = (r_o->inst & 0x000f0000) >>16 ;
 	r_n->rd_DE = (r_o->inst & 0x00f00000)>>20;
@@ -180,17 +174,35 @@ void DECODE(reg* r_o, reg* r_n) //not support on stalling and branch resulotion 
 	return;
 }
 
-int Stall_Data_Hazard(reg* r_o, reg* r_n) //not finish
+int Stall_Data_Hazard(reg* r_o, reg* r_n)  
 {
-	if (r_n->opcode_DE >= ADD && r_n->opcode_DE <= LL)
+	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) | r_n->opcode_DE==LW)
 	{
-		if ((r_n->rs_DE == r_o->rd_DE) | (r_n->rs_DE == r_o->rd_EM) | (r_n->rs_DE == r_o->rd_MW)) return 1;
-		if ((r_n->rt_DE == r_o->rd_DE) | (r_n->rt_DE == r_o->rd_EM) | (r_n->rt_DE == r_o->rd_MW)) return 1;
-
+		if (r_n->rs_DE!=0 &&(((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rs_DE == r_o->rd_MW) &&Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		return 0;
 	}
+	if ((r_n->opcode_DE >= BEQ && r_n->opcode_DE <= BGE) | r_n->opcode_DE==SW | r_n->opcode_DE == LL | r_n->opcode_DE == SC)
+	{
+		if (r_n->rs_DE != 0 && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rs_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rd_DE != 0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		return 0;
+	}
+	if (r_n->opcode_DE == JAL) {
+		if (r_n->rd_DE !=0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		return 0;
+	}
+	return 0;
+
 }
 
-
+int Changing_opcode_list(int opcode)
+{
+	if (opcode >= ADD && opcode <= SRL) return 1;
+	if (opcode == LW) return 1;
+	return 0;
+}
 
 void BranchResulotion(reg* r_o, reg* r_n)
 {
@@ -236,25 +248,61 @@ void EXE(reg* r_o, reg* r_n)
 
 void MEM(reg* r_o, reg* r_n)
 {
-	//LoadWord(r_o->rs_MW + r_o->rt_MW, &r_o->rd_MW, cache, 0); 
+	
+	if (r_o->opcode_EM == LW | r_o->opcode_EM == SW)
+	{
+		if (r_o->opcode_EM == LW)
+		{
+			if (!LoadWord(r_o->aluout, &r_n->data, CORE * core, r_o->status)) //data not ready
+			{
+				r_n->status = 1;
+				Stall_Memory(r_o,r_n);
+				return;
 
+			}
+			r_n->status = 0;
+		}
+		if (r_o->opcode_EM == SW)
+		{
+			if (!StoreWord(r_o->aluout, r_o->reg[r_o->rd_EM], CORE * core, r_o->status))
+			{
+				r_n->status = 1;
+				Stall_Memory(r_o, r_n);
+				return;
+			}
+			r_n->status = 0;
+		}
+	}
+	//LoadWord(r_o->rs_MW + r_o->rt_MW, &r_o->rd_MW, cache, 0); 
+	else r_n->data = r_o->aluout; // in the case that no memory opcode
 	r_n->rs_MW = r_o->rs_EM;
 	r_n->rt_MW = r_o->rt_EM;
 	r_n->rd_MW = r_o->rd_EM;
-
-	
-
 	r_n->opcode_MW = r_o->opcode_EM;
-	r_n->data = r_o->aluout; // in the case that no memory opcode
+	
+	return;
+}
+
+void Stall_Memory(reg* r_o, reg* r_n)
+{
+	r_n->inst = r_o->inst;
+	r_n->pc = r_o->pc;
+	r_n->alu0 = r_o->alu0;
+	r_n->alu1 = r_o->alu1;
+	r_n->rd_EM = r_o->rd_EM;
+	r_n->rt_EM = r_o->rt_EM;
+	r_n->rs_EM = r_o->rs_EM;
+	r_n->opcode_EM = r_o->opcode_EM;
 	return;
 }
 
 void WB(reg* r_o, reg* r_n)
 {
-	if (r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)
+	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)| r_o->opcode_MW==LW)
 	{
 		r_n->reg[r_o->rd_MW] = r_o->data;
 	}
+	
 }
 
 void Jump_to_PC(FILE* f, int PC) {
@@ -290,6 +338,12 @@ void ALU(int* aluout, int alu0, int alu1, int opcode)
 		//*aluout = alu0  alu1;
 	case SRL:
 		*aluout = alu0 >> alu1;
+		break;
+	case LW:
+		*aluout = alu0 + alu1;
+		break;
+	case SW:
+		*aluout = alu0 + alu1;
 		break;
 
 	}
