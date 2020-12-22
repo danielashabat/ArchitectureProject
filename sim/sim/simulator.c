@@ -1,6 +1,13 @@
 
 #include "simulator.h"
 
+/*********************GLOBAL VARS	*****************/
+
+//this variables hold in index 'i' the number of 'read_hit' for core 'i' (and so on)
+int read_hit[CORES_NUM] = { 0 };
+int write_hit[CORES_NUM] = { 0 };
+int read_miss[CORES_NUM] = { 0 };
+int write_miss[CORES_NUM] = { 0 };
 /*********************SIMULATOR FUNCTIONS*****************/
 // the function return the new status of the memory  { WAITING = 0, DONE = 1, CACHE_MISS = 2 }
 int LoadWord(int address, int* data,CORE *core, int prev_status) {
@@ -10,9 +17,12 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 	switch (prev_status)
 	{
 	case DONE://the pervios command done -> the memory is free
-		if (address_in_cache(address, cache, &mode)) { GetDataFromCache(cache, address, data); return DONE; }//get the data from the cache
-		else if (mode == MODIFIED) return CONFLICT_MISS;//conflict miss with a block in MODIFIED mode,  so it need to be written first to the main memory
-		else return CACHE_MISS;
+		if (address_in_cache(address, cache, &mode)) {
+			GetDataFromCache(cache, address, data);
+			read_hit[core->id]++;//+1 to read hit
+			return DONE; }//get the data from the cache
+		else if (mode == MODIFIED) { read_miss[core->id]++; return CONFLICT_MISS; }//conflict miss with a block in MODIFIED mode,  so it need to be written first to the main memory
+		else { read_miss[core->id]++;  return CACHE_MISS; }
 		break;
 
 	case CONFLICT_MISS:
@@ -56,11 +66,12 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 			if (mode == MODIFIED) {
 				GetDataFromCacheExclusive(cache, address, &data);
 				WriteToCache(cache, address, new_data);
+				write_hit[core->id]++;//increase +1 to write hit
 				return DONE;
 			}
 		}
-		else if (mode == MODIFIED) return CONFLICT_MISS;//conflict miss with a block in MODIFIED mode,  so it need to be written first to the main memory
-		else return CACHE_MISS;
+		else if (mode == MODIFIED) { write_miss[core->id]++; return CONFLICT_MISS; }//conflict miss with a block in MODIFIED mode,  so it need to be written first to the main memory
+		else { write_miss[core->id]++; return CACHE_MISS; }
 		break;
 
 	case CONFLICT_MISS:
@@ -135,4 +146,5 @@ int SNOOPING(CORE* core) {
 		}
 		return 0;
 	}
+	return 0;
 }

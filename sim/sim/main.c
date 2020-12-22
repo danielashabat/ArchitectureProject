@@ -80,7 +80,11 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin,
 	InitialBus();//reset the bus lines
 
 	while (1)
-	{
+	{	
+		if (cycle_counter == 69) {
+			int q = 0;;
+		}
+		printf("cycle %d\n", cycle_counter);
 		FETCH(imem1, r1_o, r1_n);
 		DECODE(r1_o, r1_n);
 		EXE(r1_o, r1_n);

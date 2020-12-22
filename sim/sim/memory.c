@@ -37,13 +37,12 @@ void update_bus() {
 		bus_reg_new.timer = 0;
 		bus_reg_new.bus_cmd = 0;
 	}
-
+		
 	//handle with busRd/BuesRdX/FLUSH
 	if (bus_reg_old.bus_mode != 0) {
-		if (bus_reg_old.timer == 64) {//bus finish reading from memory after 64 cycles
+		if (bus_reg_old.timer == 62) {//bus finish reading from memory after 64 cycles (decrease -2 because flops delay)
 			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
 				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
-				printf("-FLUSH - data :%d, address: %d \n", MainMemory[bus_reg_old.bus_addr], bus_reg_old.bus_addr);
 			}
 			else printf("finish updating the main memory!\n");
 			bus_reg_new.bus_mode = 0;//set bus mode to free
@@ -57,6 +56,7 @@ void update_bus() {
 	if ((bus_reg_old.bus_cmd == FLUSH) && (bus_reg_old.bus_origid == 4)) {//if flush from bus in the last cycle
 		bus_reg_new.bus_mode = 0;//set bus mode to free
 		bus_reg_new.bus_cmd = 0;
+		printf("-FLUSH - data: 0x%08x, address: 0x%08x \n", bus_reg_old.bus_data, bus_reg_old.bus_addr);
 	}
 }
 

@@ -20,6 +20,7 @@
 #define MODIFIED 2
 
 #define PC_MASK(PC) 0X3FF&PC
+#define CORES_NUM 4//number of cores 
 
 
 typedef enum { NO_COMMAND = 0, BUSRD = 1, BUSRDX = 2, FLUSH = 3 } bus_commands;
@@ -41,7 +42,7 @@ typedef struct {
 	int timer;// when bus is busy the timer count the numer of cycles it busy
 }Bus_Reg;
 
-/*********************GLOBAL VARS	*****************/
+
 
 
 /*********************FUNCTIONS DECLARATION	*****************/
