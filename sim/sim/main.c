@@ -17,6 +17,8 @@ stats2.txt stats3.txt
 int main(int argc, char* argv[]) {
 	FILE* imem1 = NULL;
 	FILE *memin = NULL;
+	FILE* core1_trace = NULL;
+	FILE* memout = NULL;
 	reg reg1_o, reg1_n;
 	
 	Reset_Reg(&reg1_o);
@@ -28,6 +30,8 @@ int main(int argc, char* argv[]) {
 
 	memin = fopen("memin.txt", "r");
 	imem1 = fopen(argv[1], "r");
+	core1_trace= fopen(argv[2], "w");
+	//memout = fopen(argv[3], "w");
 	if ((imem1 == NULL )|| (memin==NULL)) {
 		printf("cant open one of the files\n");
 		return 1;
@@ -59,31 +63,35 @@ int main(int argc, char* argv[]) {
 	//end Daniela Debug
 	
 
-	Simulator(imem1, &reg1_o, &reg1_n);
+	Simulator(imem1, &reg1_o, &reg1_n ,core1_trace, memin, memout);
 	fclose(imem1);
-	
+	fclose(core1_trace);
 	return 0;
 }
 
-void Simulator(FILE* imem1, reg* r1_o, reg* r1_n)
+void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin, FILE *memout)
 {
 	int flag1=1;
-	int cycle_counter = 1;
-	int continue_flag1 = 1; // will use for halt
+	int cycle_counter = 0;
+	int continue_flag1 = 0; // will use for halt
+	CORE core1;
+	InitialCore(&core1, 0);//reset the core
+	InitialMainMemory(memin);
+	InitialBus();//reset the bus lines
+
 	while (1)
 	{
 		FETCH(imem1, r1_o, r1_n);
 		DECODE(r1_o, r1_n);
 		EXE(r1_o, r1_n);
-		MEM(r1_o, r1_n);
-		WB(r1_o, r1_n);
-		printf("cycle %d\n", cycle_counter);
-		printr(r1_o);
+		MEM(r1_o, r1_n, &core1);
+		continue_flag1 = WB(r1_o, r1_n);
+		Print_Core_Trace(core_trace, r1_o, cycle_counter);
 		Sampling_Reg(r1_o, r1_n);
-		
-		
+		sample_bus();
+		if (continue_flag1) break;
 		cycle_counter++;
-		if (cycle_counter == 30) break; //for test.
+		
 	}
 }
 
@@ -93,7 +101,11 @@ void Reset_Reg(reg* r)
 	{
 		r->reg[i] = 0;
 	}
-	r->pc = 0;
+	r->pc_FF=0;
+	r->pc_FD=-1;
+	r->pc_DE=-1;
+	r->pc_EM=-1;
+	r->pc_MW=-1;
 	r->inst = 0;
 	r->alu0 = 0;
 	r->alu1 = 0;
@@ -112,14 +124,18 @@ void Reset_Reg(reg* r)
 	r->opcode_EM = 0;
 	r->opcode_MW = 0;
 	r->data = 0;
-	r->status = 0;
+	r->status = DONE;
 	return;
 }
 
 void Sampling_Reg(reg* r_o, reg* r_n)
 {
 	for (int i = 0; i < REG_NUM; i++) r_o->reg[i] = r_n->reg[i];
-	r_o->pc = r_n->pc;
+	r_o->pc_FF = r_n->pc_FF;
+	r_o->pc_FD = r_n->pc_FD;
+	r_o->pc_DE = r_n->pc_DE;
+	r_o->pc_EM = r_n->pc_EM;
+	r_o->pc_MW = r_n->pc_MW;
 	r_o->inst = r_n->inst;
 	r_o->alu0 = r_n->alu0;
 	r_o->alu1 = r_n->alu1;
@@ -144,24 +160,37 @@ void Sampling_Reg(reg* r_o, reg* r_n)
 
 void FETCH(FILE *imem, reg* r_o, reg* r_n)
 {
-	
-	Jump_to_PC(imem, r_o->pc);
-	printf("doing Fetch to pc= %d\n", r_o->pc); 
-	fscanf(imem, "%08x\n", &r_n->inst);
-	r_n->pc = r_o->pc + 1;
+	if (r_o->pc_FF != -1) {
+		Jump_to_PC(imem, r_o->pc_FF);
+		printf("doing Fetch to pc= %d\n", r_o->pc_FF);
+		fscanf(imem, "%08x\n", &r_n->inst);
+		r_n->pc_FF = r_o->pc_FF + 1;
+		r_n->pc_FD = r_o->pc_FF;
+	}
+	else r_n->pc_FD = -1;
+	return;
 }
 
-void DECODE(reg* r_o, reg* r_n) 
+void DECODE(reg* r_o, reg* r_n)  // needs to fix halt 
 {
 	r_n->reg[1] = r_o->inst & 0x00000fff;
+	r_o->reg[1] = r_o->inst & 0x00000fff; //test
 	printf("doing DECODE to inst= %08x\n", r_o->inst);
 	r_n->rt_DE = (r_o->inst & 0x0000f000) >> 12;
 	r_n->rs_DE = (r_o->inst & 0x000f0000) >>16 ;
 	r_n->rd_DE = (r_o->inst & 0x00f00000)>>20;
 	r_n->opcode_DE = (r_o->inst & 0xff000000)>>24;
+	if (r_n->opcode_DE == 20)
+	{
+		r_n->pc_FF = -1;
+		r_n->pc_DE = r_o->pc_FD;
+		return;
+	}
 	if (Stall_Data_Hazard(r_o, r_n)) { //if stall due to data hazard
 		r_n->inst = r_o->inst; 
-		r_n->pc = r_o->pc;
+		r_n->pc_FF = r_o->pc_FF;
+		r_n->pc_FD = r_o->pc_FD;
+		r_n->pc_DE = -1;
 	}
 	else
 	{
@@ -170,27 +199,29 @@ void DECODE(reg* r_o, reg* r_n)
 		if (r_n->rt_DE != 1) r_n->alu1 = r_o->reg[r_n->rt_DE];
 		else r_n->alu1 = r_n->reg[1];
 		if (r_n->opcode_DE >= BEQ && r_n->opcode_DE <= JAL) BranchResulotion(r_o, r_n); //handling beanch resulotion
+		r_n->pc_DE = r_o->pc_FD;
 	}
+	
 	return;
 }
 
 int Stall_Data_Hazard(reg* r_o, reg* r_n)  
 {
-	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) | r_n->opcode_DE==LW)
+	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) || r_n->opcode_DE==LW)
 	{
-		if (r_n->rs_DE!=0 &&(((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rs_DE == r_o->rd_MW) &&Changing_opcode_list(r_o->opcode_MW)))) return 1;
-		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rs_DE!=0 &&(((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) &&Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
-	if ((r_n->opcode_DE >= BEQ && r_n->opcode_DE <= BGE) | r_n->opcode_DE==SW | r_n->opcode_DE == LL | r_n->opcode_DE == SC)
+	if ((r_n->opcode_DE >= BEQ && r_n->opcode_DE <= BGE) || r_n->opcode_DE==SW || r_n->opcode_DE == LL || r_n->opcode_DE == SC)
 	{
-		if (r_n->rs_DE != 0 && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rs_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
-		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
-		if (r_n->rd_DE != 0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rs_DE != 0 && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rd_DE != 0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
 	if (r_n->opcode_DE == JAL) {
-		if (r_n->rd_DE !=0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) | ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) | ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if (r_n->rd_DE !=0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
 	return 0;
@@ -209,26 +240,26 @@ void BranchResulotion(reg* r_o, reg* r_n)
 	switch (r_n->opcode_DE)
 	{
 		case BEQ:
-			if (r_o->reg[r_n->rs_DE] == r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			if (r_o->reg[r_n->rs_DE] == r_o->reg[r_n->rt_DE]) r_n->pc_FF = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
 			break;
 		case BNE:
-			if (r_o->reg[r_n->rs_DE] != r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			if (r_o->reg[r_n->rs_DE] != r_o->reg[r_n->rt_DE]) r_n->pc_FF = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
 			break;
 		case BLT:
-			if (r_o->reg[r_n->rs_DE] < r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			if (r_o->reg[r_n->rs_DE] < r_o->reg[r_n->rt_DE]) r_n->pc_FF = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
 			break;
 		case BGT:
-			if (r_o->reg[r_n->rs_DE] > r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			if (r_o->reg[r_n->rs_DE] > r_o->reg[r_n->rt_DE]) r_n->pc_FF = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
 			break;
 		case BLE:
-			if (r_o->reg[r_n->rs_DE] <= r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			if (r_o->reg[r_n->rs_DE] <= r_o->reg[r_n->rt_DE]) r_n->pc_FF = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
 			break;
 		case BGE:
-			if (r_o->reg[r_n->rs_DE] >= r_o->reg[r_n->rt_DE]) r_n->pc = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
+			if (r_o->reg[r_n->rs_DE] >= r_o->reg[r_n->rt_DE]) r_n->pc_FF = ((r_o->reg[r_n->rd_DE]) & 0x000003ff);
 			break;
 		case JAL:
-			r_n->reg[15] = r_o->pc;
-			r_n->pc= (r_o->reg[r_n->rd_DE]) & 0x000003ff;
+			r_n->reg[15] = r_o->pc_FF;
+			r_n->pc_FF= (r_o->reg[r_n->rd_DE]) & 0x000003ff;
 			break;
 	
 	}
@@ -243,50 +274,55 @@ void EXE(reg* r_o, reg* r_n)
 	r_n->rt_EM = r_o->rt_DE;
 	r_n->rd_EM = r_o->rd_DE;
 	r_n->opcode_EM = r_o->opcode_DE;
+	r_n->pc_EM = r_o->pc_DE;
 	return;
 }
 
-void MEM(reg* r_o, reg* r_n)
+void MEM(reg* r_o, reg* r_n, CORE *core)
 {
 	
-	if (r_o->opcode_EM == LW | r_o->opcode_EM == SW)
+	if (r_o->opcode_EM == LW || r_o->opcode_EM == SW)
 	{
 		if (r_o->opcode_EM == LW)
 		{
-			if (!LoadWord(r_o->aluout, &r_n->data, CORE * core, r_o->status)) //data not ready
+			if ((r_n->status =LoadWord(r_o->aluout, &r_n->data, core, r_o->status))!= DONE) //data not ready
 			{
-				r_n->status = 1;
 				Stall_Memory(r_o,r_n);
 				return;
 
 			}
-			r_n->status = 0;
+			
 		}
 		if (r_o->opcode_EM == SW)
 		{
-			if (!StoreWord(r_o->aluout, r_o->reg[r_o->rd_EM], CORE * core, r_o->status))
+			if ((r_n->status = StoreWord(r_o->aluout, r_o->reg[r_o->rd_EM], core, r_o->status))!= DONE) 
 			{
-				r_n->status = 1;
+				
 				Stall_Memory(r_o, r_n);
 				return;
 			}
-			r_n->status = 0;
 		}
 	}
-	//LoadWord(r_o->rs_MW + r_o->rt_MW, &r_o->rd_MW, cache, 0); 
-	else r_n->data = r_o->aluout; // in the case that no memory opcode
+	else {
+		r_n->data = r_o->aluout;
+		
+	} // in the case that no memory opcode
 	r_n->rs_MW = r_o->rs_EM;
 	r_n->rt_MW = r_o->rt_EM;
 	r_n->rd_MW = r_o->rd_EM;
 	r_n->opcode_MW = r_o->opcode_EM;
-	
+	r_n->pc_MW = r_o->pc_EM;
 	return;
 }
 
 void Stall_Memory(reg* r_o, reg* r_n)
 {
 	r_n->inst = r_o->inst;
-	r_n->pc = r_o->pc;
+	r_n->pc_FF = r_o->pc_FF;
+	r_n->pc_MW = -1;
+	r_n->pc_EM = r_o->pc_EM;
+	r_n->pc_DE = r_o->pc_DE;
+	r_n->pc_FD = r_o->pc_FD;
 	r_n->alu0 = r_o->alu0;
 	r_n->alu1 = r_o->alu1;
 	r_n->rd_EM = r_o->rd_EM;
@@ -296,12 +332,15 @@ void Stall_Memory(reg* r_o, reg* r_n)
 	return;
 }
 
-void WB(reg* r_o, reg* r_n)
+int WB(reg* r_o, reg* r_n)
 {
-	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)| r_o->opcode_MW==LW)
+	
+	if (r_o->opcode_MW == 20) return 1;
+	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)|| r_o->opcode_MW==LW)
 	{
 		r_n->reg[r_o->rd_MW] = r_o->data;
 	}
+	return 0;
 	
 }
 
@@ -354,5 +393,21 @@ void printr(reg* r)
 	printf("reg[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]\n", r->reg[0], r->reg[1], r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10],r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]); 
 	printf("inst=%08x, alu0=%d, alu1=%d, aluout=%d, rs_DE=%d, rs_EM=%d, rs_MW=%d,rt_DE=%d, rt_EM=%d, rt_MW=%d, rd_DE=%d, rd_EM=%d, rd_MW=%d \n", r->inst, r->alu0, r->alu1, r->aluout, r->rs_DE, r->rs_EM, r->rs_MW, r->rt_DE, r->rt_EM, r->rt_MW, r->rd_DE, r->rd_EM, r->rd_MW);
 	printf("opcode_DE=%d, opcode_EM= %d, opcode_MW=%d\n", r->opcode_DE, r->opcode_EM, r->opcode_MW);
+}
+
+void Print_Core_Trace(FILE* f, reg* r, int cycle)
+{
+	fprintf(f, "%d ", cycle);
+	if (r->pc_FF != -1) fprintf(f, "%03x ", r->pc_FF);
+	else fprintf(f, "--- ");
+	if (r->pc_FD != -1) fprintf(f, "%03x ", r->pc_FD);
+	else fprintf(f, "--- ");
+	if (r->pc_DE != -1) fprintf(f, "%03x ", r->pc_DE);
+	else fprintf(f, "--- ");
+	if (r->pc_EM != -1) fprintf(f, "%03x ", r->pc_EM);
+	else fprintf(f, "--- ");
+	if (r->pc_MW != -1) fprintf(f, "%03x ", r->pc_MW);
+	else fprintf(f, "--- "); //print the old
+	fprintf(f, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
 }
 

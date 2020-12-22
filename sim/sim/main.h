@@ -1,6 +1,9 @@
 #ifndef	MAIN_H
 #define MAIN_H
 
+#include "simulator.h"
+
+
 #define ADD 0
 #define SUB 1
 #define AND 2
@@ -24,11 +27,20 @@
 #define HALT 20
 
 #define REG_NUM 16
-#define ARGC_NUM 2//need to include  'sim.exe'
+#define ARGC_NUM 3//need to include  'sim.exe'
+ 
+
+
+/*********************STRUCTS*****************/
+
 
 typedef struct {
 	int reg[REG_NUM];
-	int pc;
+	int pc_FF;
+	int pc_FD;
+	int pc_DE;
+	int pc_EM;
+	int pc_MW;
 	int inst;
 	int alu0;//first input to ALU
 	int alu1;//second input to ALU
@@ -55,17 +67,20 @@ typedef struct {
 int Stall_Data_Hazard(reg* r_o, reg* r_n);
 int Changing_opcode_list(int opcode);
 void Reset_Reg(reg* r);
-void Simulator(FILE* imem1, reg* r1_o, reg* r1_n);
+void Simulator(FILE* imem1, reg* r1_o, reg* r1_n, FILE* core_trace, FILE* memin, FILE* memout);
 void Sampling_Reg(reg* r_o, reg* r_n);
 void FETCH(FILE* imem, reg* r_o, reg* r_n);
 void Jump_to_PC(FILE* f, int PC);
-void DECODE(reg* r_o, reg* r_n); //not support on stalling yet
+void DECODE(reg* r_o, reg* r_n); 
 void EXE(reg* r_o, reg* r_n);
 void ALU(int* aluout, int alu0, int alu1, int opcode);
 void printr(reg* r);
-void MEM(reg* r_o, reg* r_n);
-void WB(reg* r_o, reg* r_n);
+void MEM(reg* r_o, reg* r_n, CORE* core);
+int WB(reg* r_o, reg* r_n);
 void BranchResulotion(reg* r_o, reg* r_n);
+void Print_Core_Trace(FILE* f, reg* r, int cycle);
+void Stall_Memory(reg* r_o, reg* r_n);
+
 
 
 

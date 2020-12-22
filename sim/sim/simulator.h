@@ -5,17 +5,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "memory.h"
-#include "main.h"
+
 
 
 /*********************MACROS*****************/
 typedef enum { WAITING = 0, DONE = 1, CACHE_MISS = 2 , CONFLICT_MISS=3} MEM_STATUS;
 
 
-/*********************STRUCTS*****************/
+
 typedef struct Core {
-	reg reg_old;
-	reg reg_new;
 	FILE* IMEM;
 	CACHE  cache;
 	int id;//core index {0-3}
@@ -26,6 +24,9 @@ typedef struct Core {
 /*this function initial a new core. it reset it's cache and set the Id core*/
 void InitialCore(CORE* core,//need to be a valid pointer to core 
 				int id_core);// a unique id that going to be set to the core
+
+
+
 
 /*********************MEM FUNCTIONS*****************/
 
