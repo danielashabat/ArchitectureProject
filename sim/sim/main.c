@@ -92,12 +92,8 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin,
 		continue_flag1 = WB(r1_o, r1_n);
 		Print_Core_Trace(core_trace, r1_o, cycle_counter);
 		Sampling_Reg(r1_o, r1_n);
-		sample_bus();
+		sample_bus(cycle_counter);
 		if (continue_flag1) break;
-		if (cycle_counter == 143)
-		{
-			printf("mor");
-		}
 		cycle_counter++;
 		
 	}

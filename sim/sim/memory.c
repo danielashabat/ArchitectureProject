@@ -11,8 +11,8 @@ static Bus_Reg bus_reg_new;
 
 
 /*********************BUS FUNCTIONS*****************/
-void sample_bus(){
-	update_bus();
+void sample_bus(int cycle){
+	update_bus(cycle);
 	bus_reg_old.bus_origid=bus_reg_new.bus_origid;
 	bus_reg_old.bus_cmd=bus_reg_new.bus_cmd;
 	bus_reg_old.bus_addr=bus_reg_new.bus_addr;
@@ -21,26 +21,26 @@ void sample_bus(){
 	bus_reg_old.timer = bus_reg_new.timer;
 }
 
-void update_bus() {
+void update_bus(int cycle) {
 	//check for new request
 	if (bus_reg_old.bus_cmd == BUSRD || bus_reg_old.bus_cmd == BUSRDX) {
-		printf("-BUS request- command:%d, address: 0x%08x from core: %d\n", bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		printf("-BUS request in cycle %d - command:%d, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
 		bus_reg_new.bus_mode = 1;//set bus mode to busy
-		bus_reg_new.timer = 0;
+		bus_reg_new.timer = 1;
 		bus_reg_new.bus_cmd = 0;
 		return;
 	}
-	//check for flush request from one of the cores
+	//check for flush request from one of the cores-> need to update main memory
 	if (bus_reg_old.bus_cmd ==FLUSH && (bus_reg_old.bus_origid!=4)) {
-		printf("-FLUSH request- data:%d, address: 0x%08x from core: %d\n", bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		printf("-FLUSH request  in cycle %d - data:%d, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
 		bus_reg_new.bus_mode = 2;//set bus mode to busy
-		bus_reg_new.timer = 0;
+		bus_reg_new.timer = 1;
 		bus_reg_new.bus_cmd = 0;
 	}
 		
 	//handle with busRd/BuesRdX/FLUSH
 	if (bus_reg_old.bus_mode != 0) {
-		if (bus_reg_old.timer == 62) {//bus finish reading from memory after 64 cycles (decrease -2 because flops delay)
+		if (bus_reg_old.timer == 63) {//bus finish reading from memory after 64 cycles (decrease -1 because flops delay)
 			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
 				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
 			}
@@ -56,7 +56,7 @@ void update_bus() {
 	if ((bus_reg_old.bus_cmd == FLUSH) && (bus_reg_old.bus_origid == 4)) {//if flush from bus in the last cycle
 		bus_reg_new.bus_mode = 0;//set bus mode to free
 		bus_reg_new.bus_cmd = 0;
-		printf("-FLUSH - data: 0x%08x, address: 0x%08x \n", bus_reg_old.bus_data, bus_reg_old.bus_addr);
+		printf("-FLUSH  in cycle %d - data: 0x%08x, address: 0x%08x \n",cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr);
 	}
 }
 
@@ -146,10 +146,6 @@ DSRAM:each row is 32 bits long, represent the data of the address from the main 
 //update cache block by reading the bus lines
 void UpdateCacheFromBus(CACHE* cache , int new_mode) {
 	//get data from the bus
-	if (bus_reg_old.bus_origid != 4) {
-		printf("ERROR:the data is not from bus!");
-		return;
-	}
 	int data = bus_reg_old.bus_data;
 	int address = bus_reg_old.bus_addr;
 
@@ -171,7 +167,7 @@ int GetDataFromCache(CACHE* cache, int address, int* data) {
 	if (address_in_cache(address,cache,&mode)) {
 		int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
 		*data = cache->DSRAM[index];//assign to data pointer to the data taken from cache 
-		printf("read hit!address:0x%08x data: 0x%08x\n", address, *data);
+		//printf("read hit!address:0x%08x data: 0x%08x\n", address, *data);
 		return 1;//cache hit
 	}
 	printf("read miss! address: 0x%08x\n", address);
@@ -186,7 +182,7 @@ int GetDataFromCacheExclusive(CACHE* cache, int address, int* data) {
 		if (mode == MODIFIED) {
 			int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
 			*data = cache->DSRAM[index];//assign to data pointer to the data taken from cache 
-			printf("write hit!address:0x%08x data: 0x%08x\n", address, *data);
+			//printf("write hit!address:0x%08x data: 0x%08x\n", address, *data);
 			return 1;//cache hit
 		}
 	}
@@ -236,7 +232,7 @@ void WriteToCache(CACHE *cache, int address, int data) {
 
 		//update DSRAM
 	cache->DSRAM[index] = data;
-	printf("cache update in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
+	//printf("cache update in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
 	return;
 }
 

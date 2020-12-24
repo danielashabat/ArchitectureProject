@@ -53,9 +53,8 @@ int GetDataFromCacheExclusive(CACHE* cache, int address, int* data);
 void UpdateCacheFromBus(CACHE* cache, int new_mode);
 void WriteToCache(CACHE* cache, int address, int data);
 
-void sample_bus();
-void update_bus();
-void abort_bus();
+void sample_bus(int cycle);
+void update_bus(int cycle);
 int bus_is_busy();
 void ReadBusLines(int* bus_origid, int* bus_cmd, int* bus_addr, int* bus_data);
 void InitialBus();

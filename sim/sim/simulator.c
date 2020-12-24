@@ -39,7 +39,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 			return WAITING;
 		}
 		else 
-			printf("ERROR:try to send bus reqeust but bus is busy!\n"); return CACHE_MISS;//need to handle the case the bus busy from another core
+			printf("INFO:try to send bus reqeust but bus is busy!\n"); return CACHE_MISS;//need to handle the case the bus busy from another core
 		break;
 
 	case WAITING:
@@ -51,7 +51,8 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 		else return WAITING; //still need to wait to FLUSH
 		break;
 	}
-	return 0;
+	printf("ERROR: how did you get here?!");
+	return -1;//default
 }
 
 // the function return the new status of the memory  { WAITING = 0, DONE = 1, CACHE_MISS = 2 }
@@ -69,9 +70,19 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 				write_hit[core->id]++;//increase +1 to write hit
 				return DONE;
 			}
+			else {
+				write_miss[core->id]++;
+				return CACHE_MISS;
+			}
 		}
-		else if (mode == MODIFIED) { write_miss[core->id]++; return CONFLICT_MISS; }//conflict miss with a block in MODIFIED mode,  so it need to be written first to the main memory
-		else { write_miss[core->id]++; return CACHE_MISS; }
+		else if (mode == MODIFIED) {
+			write_miss[core->id]++;
+			return CONFLICT_MISS;
+		}//conflict miss with a block in MODIFIED mode,  so it need to be written first to the main memory
+		else {
+			write_miss[core->id]++;
+			return CACHE_MISS;
+		}
 		break;
 
 	case CONFLICT_MISS:
@@ -89,7 +100,7 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 			return WAITING;
 		}
 		else
-			printf("ERROR:try to send bus reqeust but bus is busy!\n"); return WAITING;//need to handle the case the bus busy from another core
+			printf("INFO:try to send bus reqeust but bus is busy!\n"); return WAITING;//need to handle the case the bus busy from another core
 		break;
 
 
@@ -97,13 +108,14 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == FLUSH) {
 			UpdateCacheFromBus(cache,MODIFIED);//update cache in MODIFIED mode
-			WriteToCache(cache, address, new_data);
+			WriteToCache(cache, bus_addr, new_data);
 			return DONE;
 		}//writing  complete!
 		else return WAITING; //still need to wait
 		break;
 	}
-	return 0;//defult
+	printf("ERROR: how did you get here?!");
+	return -1;//default
 }
 
 
