@@ -9,7 +9,8 @@ static int MainMemory[MainMemorySize] = { 0 };
 static Bus_Reg bus_reg_old;
 static Bus_Reg bus_reg_new;
 
-
+static int watch_bit = 0;
+static int watch_origid = 0;// who sent the watch_bit
 /*********************BUS FUNCTIONS*****************/
 void sample_bus(int cycle){
 	update_bus(cycle);
@@ -115,6 +116,23 @@ void InitialBus() {
 	bus_reg_old.bus_mode = 0;
 	bus_reg_old.timer = 0;
 }
+
+
+void read_watch_bit(int *bit,int *origid) {
+	*bit= watch_bit;
+	*origid = watch_origid;
+}
+
+void set_watch_bit() {
+	printf("setting watch bit to 1!\n");
+	watch_bit = 1;
+}
+
+void unset_watch_bit() {
+	watch_bit = 0;
+	printf("setting watch bit to 0!\n");
+}
+
 
 /*********************MAIN MEMORY FUNCTIONS*****************/
 

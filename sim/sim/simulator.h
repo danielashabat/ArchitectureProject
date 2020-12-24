@@ -56,8 +56,9 @@ int StoreWord(int address,//the address you want to read
 
 int SNOOPING(CORE* core);
 
-
-
+int LoadLinked(int address, int* data, CORE* core, int prev_status, int* watch_flag);
+int StoreConditional(int address, int* new_data, CORE* core, int prev_status, int* watch_flag);
+int update_watch_flag(int* watch_flag, CORE* core);
 
 
 

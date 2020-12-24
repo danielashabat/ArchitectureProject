@@ -34,6 +34,13 @@ int main(int argc, char* argv[]) {
 		printf("cant open one of the files\n");
 		return 1;
 	}
+
+	//int cycles=0;
+	//int d
+	//while (cycles == 90) {
+	//	LoadLinked(16, int* data, CORE * core, int prev_status, int* watch_flag)
+	//}
+
 	Simulator(imem1, core1_trace, memin, memout);
 	fclose(imem1);
 	fclose(core1_trace);
@@ -49,6 +56,7 @@ void Simulator(FILE* imem1,FILE *core_trace, FILE *memin, FILE *memout)
 	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_n[i]);
 	int flag1=1;
 	int cycle_counter = 0;
+	int watch_flag[CORES_NUM] = { 0 };
 	
 	int continue_flag[CORE_NUM] = { 0 }; // will use for halt
 	CORE cores[CORE_NUM];
@@ -69,6 +77,7 @@ void Simulator(FILE* imem1,FILE *core_trace, FILE *memin, FILE *memout)
 				continue_flag[i] = WB(&registers_o[i], &registers_n[i]);
 				Print_Core_Trace(core_trace, &registers_o[i], cycle_counter);
 				Sampling_Reg(&registers_o[i], &registers_n[i]);
+				update_watch_flag(watch_flag[i], &cores[i]);
 			}
 			
 		}

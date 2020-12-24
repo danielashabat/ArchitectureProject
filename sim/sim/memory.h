@@ -65,6 +65,8 @@ void Flush(int address, int data, int bus_origid);
 void InitialMainMemory(FILE* memin);
 void write_block_to_main_memory(CACHE* cache, int index);
 
-
+void read_watch_bit(int* bit, int* origid);
+void set_watch_bit();
+void unset_watch_bit();
 #endif 
 

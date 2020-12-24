@@ -161,3 +161,38 @@ int SNOOPING(CORE* core) {
 	return 0;
 }
 
+int update_watch_flag(int* watch_flag,CORE *core) {
+	int watch_bit, watch_origid;
+	if (*watch_flag == 1)//check if watch flag set
+	{
+		 read_watch_bit(&watch_bit, &watch_origid);//read watch bit from bus
+		if ((watch_bit == 1 )&& (core->id != watch_origid))//another core used the sc command
+			*watch_flag = 0;//unset the watch flag
+	}
+	return;
+}
+
+int LoadLinked(int address, int* data, CORE* core, int prev_status,int *watch_flag){
+	*watch_flag = 1;
+	return LoadWord(address, data, core, prev_status);
+}
+//notice new data is pointer
+int StoreConditional(int address, int *new_data, CORE* core, int prev_status, int *watch_flag) {
+	int new_status;
+	if (*watch_flag == 1) {
+		set_watch_bit();//set the watch bit to '1' to notify other cores 
+		new_status=StoreWord(address, *new_data, core, prev_status);
+		if (new_status == DONE) {
+			*new_data = 1;//set R[rd] to 1 (success)
+			*watch_flag = 0;
+			unset_watch_bit();
+		}
+		return new_status;
+		
+	}
+	else {
+		*new_data = 1;//set R[rd] to 0 (failure)
+		printf("INFO: SC failed!'n");
+		return prev_status;
+	}
+}
