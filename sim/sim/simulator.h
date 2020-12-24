@@ -55,5 +55,11 @@ int StoreWord(int address,//the address you want to read
 	int prev_status);//the previos status from the last run of LoadWord
 
 int SNOOPING(CORE* core);
+
+
+
+
+
+
 #endif 
 #pragma once

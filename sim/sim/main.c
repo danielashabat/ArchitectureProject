@@ -19,10 +19,8 @@ int main(int argc, char* argv[]) {
 	FILE *memin = NULL;
 	FILE* core1_trace = NULL;
 	FILE* memout = NULL;
-	reg reg1_o, reg1_n;
 	
-	Reset_Reg(&reg1_o);
-	Reset_Reg(&reg1_n);
+	
 	if (argc != ARGC_NUM) {
 		printf("ERROR: there is %d input arguments. (need %d input arguments)\n", argc, ARGC_NUM);
 		return 1;
@@ -36,45 +34,66 @@ int main(int argc, char* argv[]) {
 		printf("cant open one of the files\n");
 		return 1;
 	}
-	Simulator(imem1, &reg1_o, &reg1_n ,core1_trace, memin, memout);
+	Simulator(imem1, core1_trace, memin, memout);
 	fclose(imem1);
 	fclose(core1_trace);
 	return 0;
 }
 
-void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin, FILE *memout)
+void Simulator(FILE* imem1,FILE *core_trace, FILE *memin, FILE *memout)
 {
+	Reg registers_o[CORES_NUM];
+	Reg registers_n[CORES_NUM];
+	int i = 0;
+	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_o[i]);
+	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_n[i]);
 	int flag1=1;
 	int cycle_counter = 0;
-	int i = 0;
-	int continue_flag1[CORE_NUM] = { 0 }; // will use for halt
+	
+	int continue_flag[CORE_NUM] = { 0 }; // will use for halt
 	CORE cores[CORE_NUM];
-	for(i = 0; i < CORE_NUM; i++) {InitialCore(&cores[i], i);//reset the core}
-	InitialMainMemory(memin);
+	for (i = 0; i < CORE_NUM; i++) {
+		InitialCore(&cores[i], i);//reset the core}
+		InitialMainMemory(memin);
+	}
 	InitialBus();//reset the bus lines
 
 	while (1)
 	{	
 		for ( i = 0; i < CORE_NUM; i++)
 		{
-
-			//printf("cycle %d\n", cycle_counter);
-			FETCH(imem1, r1_o, r1_n);
-			DECODE(r1_o, r1_n);
-			EXE(r1_o, r1_n);
-			MEM(r1_o, r1_n, &cores[i]);
-			continue_flag1[i] = WB(r1_o, r1_n);
-			Print_Core_Trace(core_trace, r1_o, cycle_counter);
-			Sampling_Reg(r1_o, r1_n);
-			if (continue_flag1) break;
+			if (continue_flag[i] == 0) {
+				//printf("cycle %d\n", cycle_counter);
+				FETCH(imem1, &registers_o[i], &registers_n[i]);
+				DECODE(&registers_o[i], &registers_n[i]);
+				EXE(&registers_o[i], &registers_n[i]);
+				MEM(&registers_o[i], &registers_n[i], &cores[i]);
+				continue_flag[i] = WB(&registers_o[i], &registers_n[i]);
+				Print_Core_Trace(core_trace, &registers_o[i], cycle_counter);
+				Sampling_Reg(&registers_o[i], &registers_n[i]);
+			}
+			
 		}
+		if (Checking_halt_for_all(continue_flag, CORE_NUM)) break;
 		sample_bus(cycle_counter);
 		cycle_counter++;
 		
 	}
 }
 
-void Reset_Reg(reg* r)
+
+int Checking_halt_for_all(int a[], int num)
+{
+	for (int i = 0; i < num; i++) if (a[i] == 0) return 0;
+	return 1;
+}
+
+
+
+
+
+
+void Reset_Reg(Reg* r)
 {
 	for (int i = 0; i < REG_NUM; i++)
 	{
@@ -107,7 +126,7 @@ void Reset_Reg(reg* r)
 	return;
 }
 
-void Sampling_Reg(reg* r_o, reg* r_n)
+void Sampling_Reg(Reg* r_o, Reg* r_n)
 {
 	for (int i = 0; i < REG_NUM; i++) r_o->reg[i] = r_n->reg[i];
 	r_o->pc_FF = r_n->pc_FF;
@@ -137,7 +156,7 @@ void Sampling_Reg(reg* r_o, reg* r_n)
 	return;
 }
 
-void FETCH(FILE *imem, reg* r_o, reg* r_n)
+void FETCH(FILE *imem, Reg* r_o, Reg* r_n)
 {
 	if (r_o->pc_FF != -1) {
 		Jump_to_PC(imem, r_o->pc_FF);
@@ -150,7 +169,7 @@ void FETCH(FILE *imem, reg* r_o, reg* r_n)
 	return;
 }
 
-void DECODE(reg* r_o, reg* r_n)  // needs to fix halt 
+void DECODE(Reg* r_o, Reg* r_n)  // needs to fix halt 
 {
 	r_n->reg[1] = r_o->inst & 0x00000fff;
 	r_o->reg[1] = r_o->inst & 0x00000fff; //test
@@ -186,7 +205,7 @@ void DECODE(reg* r_o, reg* r_n)  // needs to fix halt
 	return;
 }
 
-int Stall_Data_Hazard(reg* r_o, reg* r_n)  
+int Stall_Data_Hazard(Reg* r_o, Reg* r_n)  
 {
 	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) || r_n->opcode_DE==LW)
 	{
@@ -217,7 +236,7 @@ int Changing_opcode_list(int opcode)
 	return 0;
 }
 
-void BranchResulotion(reg* r_o, reg* r_n)
+void BranchResulotion(Reg* r_o, Reg* r_n)
 {
 	switch (r_n->opcode_DE)
 	{
@@ -249,7 +268,7 @@ void BranchResulotion(reg* r_o, reg* r_n)
 }
 
 
-void EXE(reg* r_o, reg* r_n)
+void EXE(Reg* r_o, Reg* r_n)
 {
 	ALU(&r_n->aluout, r_o->alu0, r_o->alu1, r_o->opcode_DE);
 	r_n->rs_EM = r_o->rs_DE;
@@ -260,7 +279,7 @@ void EXE(reg* r_o, reg* r_n)
 	return;
 }
 
-void MEM(reg* r_o, reg* r_n, CORE *core)
+void MEM(Reg* r_o, Reg* r_n, CORE *core)
 {
 	
 	if (r_o->opcode_EM == LW || r_o->opcode_EM == SW)
@@ -297,7 +316,7 @@ void MEM(reg* r_o, reg* r_n, CORE *core)
 	return;
 }
 
-void Stall_Memory(reg* r_o, reg* r_n)
+void Stall_Memory(Reg* r_o, Reg* r_n)
 {
 	r_n->inst = r_o->inst;
 	r_n->pc_FF = r_o->pc_FF;
@@ -315,7 +334,7 @@ void Stall_Memory(reg* r_o, reg* r_n)
 	return;
 }
 
-int WB(reg* r_o, reg* r_n)
+int WB(Reg* r_o, Reg* r_n)
 {
 	
 	if (r_o->opcode_MW == 20) return 1;
@@ -371,14 +390,14 @@ void ALU(int* aluout, int alu0, int alu1, int opcode)
 	}
 }
 
-void printr(reg* r)
+void printr(Reg* r)
 {
 	printf("reg[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]\n", r->reg[0], r->reg[1], r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10],r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]); 
 	printf("inst=%08x, alu0=%d, alu1=%d, aluout=%d, rs_DE=%d, rs_EM=%d, rs_MW=%d,rt_DE=%d, rt_EM=%d, rt_MW=%d, rd_DE=%d, rd_EM=%d, rd_MW=%d \n", r->inst, r->alu0, r->alu1, r->aluout, r->rs_DE, r->rs_EM, r->rs_MW, r->rt_DE, r->rt_EM, r->rt_MW, r->rd_DE, r->rd_EM, r->rd_MW);
 	printf("opcode_DE=%d, opcode_EM= %d, opcode_MW=%d\n", r->opcode_DE, r->opcode_EM, r->opcode_MW);
 }
 
-void Print_Core_Trace(FILE* f, reg* r, int cycle)
+void Print_Core_Trace(FILE* f, Reg* r, int cycle)
 {
 	fprintf(f, "%d ", cycle);
 	if (r->pc_FF != -1) fprintf(f, "%03x ", r->pc_FF);

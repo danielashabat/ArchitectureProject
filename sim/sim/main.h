@@ -61,26 +61,27 @@ typedef struct {
 	int opcode_MW;
 	int data;
 	int status; //status of memory, 0 if avalable, 1 otherwise.
-} reg;
+} Reg;
 
 
 
-int Stall_Data_Hazard(reg* r_o, reg* r_n);
+int Stall_Data_Hazard(Reg* r_o, Reg* r_n);
 int Changing_opcode_list(int opcode);
-void Reset_Reg(reg* r);
-void Simulator(FILE* imem1, reg* r1_o, reg* r1_n, FILE* core_trace, FILE* memin, FILE* memout);
-void Sampling_Reg(reg* r_o, reg* r_n);
-void FETCH(FILE* imem, reg* r_o, reg* r_n);
+void Reset_Reg(Reg* r);
+void Simulator(FILE* imem1, FILE* core_trace, FILE* memin, FILE* memout);
+int Checking_halt_for_all(int a[], int num);
+void Sampling_Reg(Reg* r_o, Reg* r_n);
+void FETCH(FILE* imem, Reg* r_o, Reg* r_n);
 void Jump_to_PC(FILE* f, int PC);
-void DECODE(reg* r_o, reg* r_n); 
-void EXE(reg* r_o, reg* r_n);
+void DECODE(Reg* r_o, Reg* r_n); 
+void EXE(Reg* r_o, Reg* r_n);
 void ALU(int* aluout, int alu0, int alu1, int opcode);
-void printr(reg* r);
-void MEM(reg* r_o, reg* r_n, CORE* core);
-int WB(reg* r_o, reg* r_n);
-void BranchResulotion(reg* r_o, reg* r_n);
-void Print_Core_Trace(FILE* f, reg* r, int cycle);
-void Stall_Memory(reg* r_o, reg* r_n);
+void printr(Reg* r);
+void MEM(Reg* r_o, Reg* r_n, CORE* core);
+int WB(Reg* r_o, Reg* r_n);
+void BranchResulotion(Reg* r_o, Reg* r_n);
+void Print_Core_Trace(FILE* f, Reg* r, int cycle);
+void Stall_Memory(Reg* r_o, Reg* r_n);
 
 
 
