@@ -28,6 +28,7 @@
 
 #define REG_NUM 16
 #define ARGC_NUM 3//need to include  'sim.exe'
+#define CORE_NUM 1
  
 
 

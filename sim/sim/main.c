@@ -36,33 +36,6 @@ int main(int argc, char* argv[]) {
 		printf("cant open one of the files\n");
 		return 1;
 	}
-
-	//Daniela debug:
-	//CORE core;
-	//int data;
-	//InitialCore(&core, 0);//reset the core
-	//InitialMainMemory(memin);//read the memory from memin file and update MainMemory array
-	//
-	//int cycles = 0;
-	//int prev_status = DONE;//status need to be register!
-
-	//InitialBus();//reset the bus lines
-	//int new_status = StoreWord(0x400,0xCAFE, &core, prev_status);
-	//while (new_status != DONE) {
-	//	sample_bus();//sample and update the bus lines 
-	//	printf("stall in cycle %d\n", cycles);
-	//	cycles++;
-	//	prev_status = new_status;
-	//	new_status = StoreWord(0x400, 0xCAFE, &core, prev_status);;
-	//}
-	//prev_status = new_status;
-	//LoadWord(0x400,&data,&core, prev_status);
-	//printf("the new data is: 0x%08x\n", data);
-
-	//return 0;
-	//end Daniela Debug
-	
-
 	Simulator(imem1, &reg1_o, &reg1_n ,core1_trace, memin, memout);
 	fclose(imem1);
 	fclose(core1_trace);
@@ -73,27 +46,29 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin,
 {
 	int flag1=1;
 	int cycle_counter = 0;
-	int continue_flag1 = 0; // will use for halt
-	CORE core1;
-	InitialCore(&core1, 0);//reset the core
+	int i = 0;
+	int continue_flag1[CORE_NUM] = { 0 }; // will use for halt
+	CORE cores[CORE_NUM];
+	for(i = 0; i < CORE_NUM; i++) {InitialCore(&cores[i], i);//reset the core}
 	InitialMainMemory(memin);
 	InitialBus();//reset the bus lines
 
 	while (1)
 	{	
-		if (cycle_counter == 69) {
-			int q = 0;;
+		for ( i = 0; i < CORE_NUM; i++)
+		{
+
+			//printf("cycle %d\n", cycle_counter);
+			FETCH(imem1, r1_o, r1_n);
+			DECODE(r1_o, r1_n);
+			EXE(r1_o, r1_n);
+			MEM(r1_o, r1_n, &cores[i]);
+			continue_flag1[i] = WB(r1_o, r1_n);
+			Print_Core_Trace(core_trace, r1_o, cycle_counter);
+			Sampling_Reg(r1_o, r1_n);
+			if (continue_flag1) break;
 		}
-		//printf("cycle %d\n", cycle_counter);
-		FETCH(imem1, r1_o, r1_n);
-		DECODE(r1_o, r1_n);
-		EXE(r1_o, r1_n);
-		MEM(r1_o, r1_n, &core1);
-		continue_flag1 = WB(r1_o, r1_n);
-		Print_Core_Trace(core_trace, r1_o, cycle_counter);
-		Sampling_Reg(r1_o, r1_n);
 		sample_bus(cycle_counter);
-		if (continue_flag1) break;
 		cycle_counter++;
 		
 	}
