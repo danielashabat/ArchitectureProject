@@ -52,10 +52,8 @@ void Simulator(FILE* imem1,FILE *core_trace, FILE *memin, FILE *memout)
 	
 	int continue_flag[CORE_NUM] = { 0 }; // will use for halt
 	CORE cores[CORE_NUM];
-	for (i = 0; i < CORE_NUM; i++) {
-		InitialCore(&cores[i], i);//reset the core}
-		InitialMainMemory(memin);
-	}
+	for (i = 0; i < CORE_NUM; i++) InitialCore(&cores[i], i);//reset the cores
+	InitialMainMemory(memin);
 	InitialBus();//reset the bus lines
 
 	while (1)
