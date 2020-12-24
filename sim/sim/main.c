@@ -84,7 +84,7 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin,
 		if (cycle_counter == 69) {
 			int q = 0;;
 		}
-		printf("cycle %d\n", cycle_counter);
+		//printf("cycle %d\n", cycle_counter);
 		FETCH(imem1, r1_o, r1_n);
 		DECODE(r1_o, r1_n);
 		EXE(r1_o, r1_n);
@@ -94,6 +94,10 @@ void Simulator(FILE* imem1, reg* r1_o, reg* r1_n ,FILE *core_trace, FILE *memin,
 		Sampling_Reg(r1_o, r1_n);
 		sample_bus();
 		if (continue_flag1) break;
+		if (cycle_counter == 143)
+		{
+			printf("mor");
+		}
 		cycle_counter++;
 		
 	}
@@ -166,7 +170,7 @@ void FETCH(FILE *imem, reg* r_o, reg* r_n)
 {
 	if (r_o->pc_FF != -1) {
 		Jump_to_PC(imem, r_o->pc_FF);
-		printf("doing Fetch to pc= %d\n", r_o->pc_FF);
+		//printf("doing Fetch to pc= %d\n", r_o->pc_FF);
 		fscanf(imem, "%08x\n", &r_n->inst);
 		r_n->pc_FF = r_o->pc_FF + 1;
 		r_n->pc_FD = r_o->pc_FF;
@@ -179,7 +183,7 @@ void DECODE(reg* r_o, reg* r_n)  // needs to fix halt
 {
 	r_n->reg[1] = r_o->inst & 0x00000fff;
 	r_o->reg[1] = r_o->inst & 0x00000fff; //test
-	printf("doing DECODE to inst= %08x\n", r_o->inst);
+	//printf("doing DECODE to inst= %08x\n", r_o->inst);
 	r_n->rt_DE = (r_o->inst & 0x0000f000) >> 12;
 	r_n->rs_DE = (r_o->inst & 0x000f0000) >>16 ;
 	r_n->rd_DE = (r_o->inst & 0x00f00000)>>20;
@@ -188,6 +192,7 @@ void DECODE(reg* r_o, reg* r_n)  // needs to fix halt
 	{
 		r_n->pc_FF = -1;
 		r_n->pc_DE = r_o->pc_FD;
+		r_n->pc_FD = -1;
 		return;
 	}
 	if (Stall_Data_Hazard(r_o, r_n)) { //if stall due to data hazard
@@ -195,6 +200,7 @@ void DECODE(reg* r_o, reg* r_n)  // needs to fix halt
 		r_n->pc_FF = r_o->pc_FF;
 		r_n->pc_FD = r_o->pc_FD;
 		r_n->pc_DE = -1;
+		r_n->opcode_DE = -1;
 	}
 	else
 	{
@@ -213,19 +219,19 @@ int Stall_Data_Hazard(reg* r_o, reg* r_n)
 {
 	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) || r_n->opcode_DE==LW)
 	{
-		if (r_n->rs_DE!=0 &&(((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) &&Changing_opcode_list(r_o->opcode_MW)))) return 1;
-		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if ((r_n->rs_DE>1) && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) &&Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if ((r_n->rt_DE > 1) &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
 	if ((r_n->opcode_DE >= BEQ && r_n->opcode_DE <= BGE) || r_n->opcode_DE==SW || r_n->opcode_DE == LL || r_n->opcode_DE == SC)
 	{
-		if (r_n->rs_DE != 0 && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
-		if (r_n->rt_DE != 0 &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
-		if (r_n->rd_DE != 0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if ((r_n->rs_DE > 1) && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if ((r_n->rt_DE > 1) &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if ((r_n->rd_DE > 1 )&&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
 	if (r_n->opcode_DE == JAL) {
-		if (r_n->rd_DE !=0 &&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
+		if ((r_n->rd_DE >1 )&&(((r_n->rd_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rd_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rd_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
 	return 0;
@@ -234,6 +240,7 @@ int Stall_Data_Hazard(reg* r_o, reg* r_n)
 
 int Changing_opcode_list(int opcode)
 {
+	if (opcode == -1) return 0;
 	if (opcode >= ADD && opcode <= SRL) return 1;
 	if (opcode == LW) return 1;
 	return 0;
@@ -324,6 +331,7 @@ void Stall_Memory(reg* r_o, reg* r_n)
 	r_n->inst = r_o->inst;
 	r_n->pc_FF = r_o->pc_FF;
 	r_n->pc_MW = -1;
+	r_n->opcode_MW = -1;
 	r_n->pc_EM = r_o->pc_EM;
 	r_n->pc_DE = r_o->pc_DE;
 	r_n->pc_FD = r_o->pc_FD;
