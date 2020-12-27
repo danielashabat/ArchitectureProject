@@ -46,7 +46,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == FLUSH) {
 		*data = bus_data;
-		UpdateCacheFromBus(cache,SHARED);//when FLUSH occurs in the bus, update cache in SHARE mode
+		UpdateCache(cache, bus_addr, bus_data,SHARED);//when FLUSH occurs in the bus, update cache in SHARE mode
 		return DONE; }//reading from main memory complete!
 		else return WAITING; //still need to wait to FLUSH
 		break;
@@ -107,7 +107,7 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 	case WAITING:
 		ReadBusLines(&bus_origid, &bus_cmd, &bus_addr, &bus_data);
 		if (bus_cmd == FLUSH) {
-			UpdateCacheFromBus(cache,MODIFIED);//update cache in MODIFIED mode
+			UpdateCache(cache, bus_addr, bus_data, MODIFIED);//update cache in MODIFIED mode
 			WriteToCache(cache, bus_addr, new_data);
 			return DONE;
 		}//writing  complete!
@@ -125,8 +125,9 @@ void InitialCore(CORE *core,int id_core) {
 }
 
 /*if the core see BusRdx/BusRd from another core. and have the most updated data of the requested address in it's cache
-in MODIFIED mode, than abort the requset and flush the data the the core that sent the request
-if the address in SHARE mode don't help the other core and invalidate the block*/
+in MODIFIED mode, than abort the requset and flush the data to the core that sent the request
+in addition, if the core see BusRdx request from another core of an address that in his cache in SHARE mode don't help the other core and invalidate the block
+this function need to be for every core and need to be update every cycle*/
 int SNOOPING(CORE* core) {
 	int bus_origid, bus_cmd, bus_addr, bus_data;
 	int data, mode,index;
@@ -138,12 +139,14 @@ int SNOOPING(CORE* core) {
 		if (address_in_cache(bus_addr, cache, &mode)) {//check if address in cache 
 			if (mode == MODIFIED) {//if the most update data is in this cache in 'M' mode than Flush
 				GetDataFromCacheExclusive(cache, bus_addr, &data);
+				abort_bus();
 				Flush(bus_addr, data, core->id);//share with other cores and update main memory
 				cache->TSRAM[index] = (INVALID << 12) | TAG_BITS(cache->TSRAM[index]);// change mode to INVALID
 				printf("core num: %d aborted bus and FLUSH to core:%d. address:0x%08x, data:0x%08x\n", core->id, bus_origid, bus_addr, data);
 				return 1;
 			}
 			if (mode == SHARED) {//only invaldiate the block
+				printf("core num: %d invalidate block in cache of address:0x%08x\n", core->id, bus_addr);
 				cache->TSRAM[index] = (INVALID << 12) | TAG_BITS(cache->TSRAM[index]);//invalidate
 				return 0;
 			}
@@ -151,6 +154,7 @@ int SNOOPING(CORE* core) {
 	}
 	if ((bus_cmd == BUSRD) && (bus_origid != core->id)) {//if BusRd request from another core
 		if (GetDataFromCacheExclusive(cache, bus_addr, &data)) {//if the most update data is in this cache in 'M' mode than Flush
+			abort_bus();
 			Flush(bus_addr, data, core->id);//share with other cores and update main memory
 			cache->TSRAM[index] = (SHARED << 12) | TAG_BITS(cache->TSRAM[index]);// change mode to share
 			printf("core num: %d aborted bus and FLUSH to core:%d. address:0x%08x, data:0x%08x\n", core->id, bus_origid, bus_addr, data);
@@ -161,6 +165,7 @@ int SNOOPING(CORE* core) {
 	return 0;
 }
 
+//read watch bit from bus lines and update the watch flag if another core set the watch bit
 int update_watch_flag(int* watch_flag,CORE *core) {
 	int watch_bit, watch_origid;
 	if (*watch_flag == 1)//check if watch flag set
@@ -172,15 +177,18 @@ int update_watch_flag(int* watch_flag,CORE *core) {
 	return;
 }
 
+//load link set watch flag to 1 and use LoadWord funtion
 int LoadLinked(int address, int* data, CORE* core, int prev_status,int *watch_flag){
 	*watch_flag = 1;
 	return LoadWord(address, data, core, prev_status);
 }
+
+//StoreConditinal checks if others cores used SC before by looking on watch flag status.
 //notice new data is pointer
 int StoreConditional(int address, int *new_data, CORE* core, int prev_status, int *watch_flag) {
 	int new_status;
 	if (*watch_flag == 1) {
-		set_watch_bit();//set the watch bit to '1' to notify other cores 
+		set_watch_bit(core->id);//set the watch bit to '1' to notify other cores 
 		new_status=StoreWord(address, *new_data, core, prev_status);
 		if (new_status == DONE) {
 			*new_data = 1;//set R[rd] to 1 (success)
@@ -191,8 +199,8 @@ int StoreConditional(int address, int *new_data, CORE* core, int prev_status, in
 		
 	}
 	else {
-		*new_data = 1;//set R[rd] to 0 (failure)
-		printf("INFO: SC failed!'n");
+		*new_data = 0;//set R[rd] to 0 (failure)
+		printf("INFO: SC failed!\n");
 		return prev_status;
 	}
 }

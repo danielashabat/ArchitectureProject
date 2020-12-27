@@ -50,9 +50,10 @@ int address_in_cache(int address, CACHE* cache, int *mode);
 void reset_cache(CACHE* cache, int id);
 int GetDataFromCache(CACHE* cache, int address, int* data);
 int GetDataFromCacheExclusive(CACHE* cache, int address, int* data);
-void UpdateCacheFromBus(CACHE* cache, int new_mode);
+void UpdateCache(CACHE* cache, int address, int data, int new_mode);
 void WriteToCache(CACHE* cache, int address, int data);
 
+void abort_bus();
 void sample_bus(int cycle);
 void update_bus(int cycle);
 int bus_is_busy();
@@ -66,7 +67,7 @@ void InitialMainMemory(FILE* memin);
 void write_block_to_main_memory(CACHE* cache, int index);
 
 void read_watch_bit(int* bit, int* origid);
-void set_watch_bit();
+void set_watch_bit(int origid);
 void unset_watch_bit();
 #endif 
 

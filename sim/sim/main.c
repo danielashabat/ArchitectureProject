@@ -7,7 +7,7 @@
 #include "memory.h"
 #include "simulator.h"
 
-
+#define FILE_LEN 20
 /*command line: sim.exe imem0.txt imem1.txt imem2.txt imem3.txt memin.txt memout.txt
 regout0.txt regout1.txt regout2.txt regout3.txt core0trace.txt core1trace.txt
 core2trace.txt core3trace.txt bustrace.txt dsram0.txt dsram1.txt dsram2.txt
@@ -15,39 +15,48 @@ dsram3.txt tsram0.txt tsram1.txt tsram2.txt tsram3.txt stats0.txt stats1.txt
 stats2.txt stats3.txt
 */
 int main(int argc, char* argv[]) {
-	FILE* imem1 = NULL;
+	FILE* imem[CORE_NUM] = { NULL };
+	FILE* core_trace[CORE_NUM] = { NULL };
+	/*FILE* imem0 = NULL, *imem1 = NULL, *imem2 = NULL, *imem3 = NULL;*/
 	FILE *memin = NULL;
-	FILE* core1_trace = NULL;
+	
 	FILE* memout = NULL;
+	int i = 0;
+	char file_name[FILE_LEN];
 	
-	
-	if (argc != ARGC_NUM) {
-		printf("ERROR: there is %d input arguments. (need %d input arguments)\n", argc, ARGC_NUM);
+	if ((argc != ARGC_NUM) && (argc != 1)) {
+		printf("ERROR: there is %d input arguments. (need %d input arguments or 1 argument )\n", argc, ARGC_NUM);
 		return 1;
 	}
 
-	memin = fopen("memin.txt", "r");
-	imem1 = fopen(argv[1], "r");
-	core1_trace= fopen(argv[2], "w");
+	if (argc == 1) {//default input arguments
+		memin = fopen("memin.txt", "r");
+		
+		for (i = 0; i < CORE_NUM; i++) {
+			sprintf(file_name, "imem%d.txt", i);
+			imem[i] = fopen(file_name, "r");
+			sprintf(file_name, "core%dtrace.txt", i);
+			core_trace[i] = fopen(file_name, "w");
+			if ((imem[i] == NULL) || (core_trace[i] == NULL)) {
+				printf("cant open one of the files\n");
+				return 1;
+			}
+		}
+	}
+
 	//memout = fopen(argv[3], "w");
-	if ((imem1 == NULL )|| (memin==NULL)) {
+	if ((memin==NULL)) {
 		printf("cant open one of the files\n");
 		return 1;
 	}
 
-	//int cycles=0;
-	//int d
-	//while (cycles == 90) {
-	//	LoadLinked(16, int* data, CORE * core, int prev_status, int* watch_flag)
-	//}
 
-	Simulator(imem1, core1_trace, memin, memout);
-	fclose(imem1);
-	fclose(core1_trace);
+	Simulator(imem, core_trace, memin, memout);
+	for (i = 0; i < CORE_NUM; i++) { fclose(imem[i]); fclose(core_trace[i]); }
 	return 0;
 }
 
-void Simulator(FILE* imem1,FILE *core_trace, FILE *memin, FILE *memout)
+void Simulator(FILE* imem[],FILE *core_trace[], FILE *memin, FILE *memout)
 {
 	Reg registers_o[CORES_NUM];
 	Reg registers_n[CORES_NUM];
@@ -66,19 +75,23 @@ void Simulator(FILE* imem1,FILE *core_trace, FILE *memin, FILE *memout)
 
 	while (1)
 	{	
+		if (cycle_counter == 1605) {
+			puts("hi");
+		}
 		for ( i = 0; i < CORE_NUM; i++)
 		{
 			if (continue_flag[i] == 0) {
 				//printf("cycle %d\n", cycle_counter);
-				FETCH(imem1, &registers_o[i], &registers_n[i]);
+				FETCH(imem[i], &registers_o[i], &registers_n[i]);
 				DECODE(&registers_o[i], &registers_n[i]);
 				EXE(&registers_o[i], &registers_n[i]);
 				MEM(&registers_o[i], &registers_n[i], &cores[i]);
 				continue_flag[i] = WB(&registers_o[i], &registers_n[i]);
-				Print_Core_Trace(core_trace, &registers_o[i], cycle_counter);
+				Print_Core_Trace(core_trace[i], &registers_o[i], cycle_counter);
 				Sampling_Reg(&registers_o[i], &registers_n[i]);
-				update_watch_flag(watch_flag[i], &cores[i]);
+				update_watch_flag(&watch_flag[i], &cores[i]);
 			}
+			SNOOPING(&cores[i]);//help another cores with LW/SW
 			
 		}
 		if (Checking_halt_for_all(continue_flag, CORE_NUM)) break;
@@ -417,6 +430,6 @@ void Print_Core_Trace(FILE* f, Reg* r, int cycle)
 	else fprintf(f, "--- ");
 	if (r->pc_MW != -1) fprintf(f, "%03x ", r->pc_MW);
 	else fprintf(f, "--- "); //print the old
-	fprintf(f, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
+	fprintf(f, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x \n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
 }
 

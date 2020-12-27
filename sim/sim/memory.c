@@ -11,6 +11,8 @@ static Bus_Reg bus_reg_new;
 
 static int watch_bit = 0;
 static int watch_origid = 0;// who sent the watch_bit
+
+static int abort_flag = 0;
 /*********************BUS FUNCTIONS*****************/
 void sample_bus(int cycle){
 	update_bus(cycle);
@@ -26,6 +28,7 @@ void update_bus(int cycle) {
 	//check for new request
 	if (bus_reg_old.bus_cmd == BUSRD || bus_reg_old.bus_cmd == BUSRDX) {
 		printf("-BUS request in cycle %d - command:%d, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		if (abort_flag == 1) { abort_flag = 0; return; }
 		bus_reg_new.bus_mode = 1;//set bus mode to busy
 		bus_reg_new.timer = 1;
 		bus_reg_new.bus_cmd = 0;
@@ -33,7 +36,7 @@ void update_bus(int cycle) {
 	}
 	//check for flush request from one of the cores-> need to update main memory
 	if (bus_reg_old.bus_cmd ==FLUSH && (bus_reg_old.bus_origid!=4)) {
-		printf("-FLUSH request  in cycle %d - data:%d, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		printf("-FLUSH request  in cycle %d - data: 0x%08x, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
 		bus_reg_new.bus_mode = 2;//set bus mode to busy
 		bus_reg_new.timer = 1;
 		bus_reg_new.bus_cmd = 0;
@@ -45,7 +48,7 @@ void update_bus(int cycle) {
 			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
 				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
 			}
-			else printf("finish updating the main memory!\n");
+			else printf("finish updating the main memory in cycle: %d!\n",cycle);
 			bus_reg_new.bus_mode = 0;//set bus mode to free
 		}
 		else {
@@ -61,9 +64,9 @@ void update_bus(int cycle) {
 	}
 }
 
-//void abort_bus() {
-//	bus_reg_new.bus_mode = 0;//set bus mode to free
-//}
+void abort_bus() {
+	abort_flag=1;
+}
 
 int bus_is_busy() {
 	return (bus_reg_old.bus_cmd || bus_reg_old.bus_mode);
@@ -123,9 +126,10 @@ void read_watch_bit(int *bit,int *origid) {
 	*origid = watch_origid;
 }
 
-void set_watch_bit() {
-	printf("setting watch bit to 1!\n");
+void set_watch_bit(int origid) {
+	printf("setting watch bit to 1 from core: %d!\n",origid);
 	watch_bit = 1;
+	watch_origid = origid;
 }
 
 void unset_watch_bit() {
@@ -161,11 +165,8 @@ DSRAM:each row is 32 bits long, represent the data of the address from the main 
 
 */
 
-//update cache block by reading the bus lines
-void UpdateCacheFromBus(CACHE* cache , int new_mode) {
-	//get data from the bus
-	int data = bus_reg_old.bus_data;
-	int address = bus_reg_old.bus_addr;
+//update cache block in the given address and data in 
+void UpdateCache(CACHE* cache ,int address,int data, int new_mode) {
 
 	int index = address % CHACHE_SIZE;// index is the the first 8 bits in address
 	int tag = address / CHACHE_SIZE;//get the tag of the address
@@ -250,7 +251,7 @@ void WriteToCache(CACHE *cache, int address, int data) {
 
 		//update DSRAM
 	cache->DSRAM[index] = data;
-	//printf("cache update in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
+	printf("write cache successed to block in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
 	return;
 }
 

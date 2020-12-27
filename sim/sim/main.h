@@ -28,7 +28,7 @@
 
 #define REG_NUM 16
 #define ARGC_NUM 3//need to include  'sim.exe'
-#define CORE_NUM 1
+#define CORE_NUM 4
  
 
 
@@ -68,7 +68,7 @@ typedef struct {
 int Stall_Data_Hazard(Reg* r_o, Reg* r_n);
 int Changing_opcode_list(int opcode);
 void Reset_Reg(Reg* r);
-void Simulator(FILE* imem1, FILE* core_trace, FILE* memin, FILE* memout);
+void Simulator(FILE* imem[], FILE* core_trace[], FILE* memin, FILE* memout);
 int Checking_halt_for_all(int a[], int num);
 void Sampling_Reg(Reg* r_o, Reg* r_n);
 void FETCH(FILE* imem, Reg* r_o, Reg* r_n);
