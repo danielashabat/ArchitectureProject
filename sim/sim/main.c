@@ -17,9 +17,8 @@ stats2.txt stats3.txt
 int main(int argc, char* argv[]) {
 	FILE* imem[CORE_NUM] = { NULL };
 	FILE* core_trace[CORE_NUM] = { NULL };
-	/*FILE* imem0 = NULL, *imem1 = NULL, *imem2 = NULL, *imem3 = NULL;*/
+	FILE *stats[CORE_NUM] = { NULL };
 	FILE *memin = NULL;
-	
 	FILE* memout = NULL;
 	int i = 0;
 	char file_name[FILE_LEN];
@@ -33,11 +32,13 @@ int main(int argc, char* argv[]) {
 		memin = fopen("memin.txt", "r");
 		
 		for (i = 0; i < CORE_NUM; i++) {
-			sprintf(file_name, "imem%d.txt", i);
-			imem[i] = fopen(file_name, "r");
-			sprintf(file_name, "core%dtrace.txt", i);
-			core_trace[i] = fopen(file_name, "w");
-			if ((imem[i] == NULL) || (core_trace[i] == NULL)) {
+			sprintf(file_name, "imem%d.txt", i); imem[i] = fopen(file_name, "r");
+			
+			sprintf(file_name, "core%dtrace.txt", i); core_trace[i] = fopen(file_name, "w");
+			
+			sprintf(file_name, "stats%d.txt", i); stats[i] = fopen(file_name, "w");
+			
+			if ((imem[i] == NULL) || (core_trace[i] == NULL ||stats[i]==NULL)) {
 				printf("cant open one of the files\n");
 				return 1;
 			}
@@ -51,21 +52,21 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	Simulator(imem, core_trace, memin, memout);
-	for (i = 0; i < CORE_NUM; i++) { fclose(imem[i]); fclose(core_trace[i]); }
+	Simulator(imem, core_trace,stats, memin, memout);
+	for (i = 0; i < CORE_NUM; i++) { fclose(imem[i]); fclose(core_trace[i]); fclose(stats[i]);}
 	return 0;
 }
 
-void Simulator(FILE* imem[],FILE *core_trace[], FILE *memin, FILE *memout)
+void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[], FILE *memin, FILE *memout)
 {
-	Reg registers_o[CORES_NUM];
-	Reg registers_n[CORES_NUM];
+	Reg registers_o[CORE_NUM];
+	Reg registers_n[CORE_NUM];
 	int i = 0;
 	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_o[i]);
 	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_n[i]);
 	int flag1=1;
 	int cycle_counter = 0;
-	int watch_flag[CORES_NUM] = { 0 };
+	int watch_flag[CORE_NUM] = { 0 };
 	
 	int continue_flag[CORE_NUM] = { 0 }; // will use for halt
 	CORE cores[CORE_NUM];
@@ -75,9 +76,7 @@ void Simulator(FILE* imem[],FILE *core_trace[], FILE *memin, FILE *memout)
 
 	while (1)
 	{	
-		if (cycle_counter == 1605) {
-			puts("hi");
-		}
+		update_main_memory(cycle_counter);
 		for ( i = 0; i < CORE_NUM; i++)
 		{
 			if (continue_flag[i] == 0) {
@@ -91,14 +90,15 @@ void Simulator(FILE* imem[],FILE *core_trace[], FILE *memin, FILE *memout)
 				Sampling_Reg(&registers_o[i], &registers_n[i]);
 				update_watch_flag(&watch_flag[i], &cores[i]);
 			}
-			SNOOPING(&cores[i]);//help another cores with LW/SW
+			Snooping(&cores[i]);//help another cores with LW/SW
 			
 		}
 		if (Checking_halt_for_all(continue_flag, CORE_NUM)) break;
-		sample_bus(cycle_counter);
+		sample_bus();
 		cycle_counter++;
 		
 	}
+	for (i = 0; i < CORE_NUM; i++) print_stats(i, stats[i]);
 }
 
 
@@ -410,6 +410,8 @@ void ALU(int* aluout, int alu0, int alu1, int opcode)
 	}
 }
 
+/*********************PRINT FUNCTIONS*****************/
+
 void printr(Reg* r)
 {
 	printf("reg[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]\n", r->reg[0], r->reg[1], r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10],r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]); 
@@ -433,3 +435,12 @@ void Print_Core_Trace(FILE* f, Reg* r, int cycle)
 	fprintf(f, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x \n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
 }
 
+void print_stats(int core_index, FILE* stats_file) {
+	int read_hit;
+	int write_hit;
+	int read_miss;
+	int write_miss;
+	get_hits_and_miss(core_index ,&read_hit, &write_hit, &read_miss, &write_miss);
+	printf("-stats core: %d - read hits:%d, write hits: %d, read_miss: %d, write_miss: %d \n", core_index, read_hit, write_hit, read_miss, write_miss);
+	//print to file stats
+}

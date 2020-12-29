@@ -12,10 +12,8 @@ static Bus_Reg bus_reg_new;
 static int watch_bit = 0;
 static int watch_origid = 0;// who sent the watch_bit
 
-static int abort_flag = 0;
 /*********************BUS FUNCTIONS*****************/
-void sample_bus(int cycle){
-	update_bus(cycle);
+void sample_bus(){
 	bus_reg_old.bus_origid=bus_reg_new.bus_origid;
 	bus_reg_old.bus_cmd=bus_reg_new.bus_cmd;
 	bus_reg_old.bus_addr=bus_reg_new.bus_addr;
@@ -24,52 +22,11 @@ void sample_bus(int cycle){
 	bus_reg_old.timer = bus_reg_new.timer;
 }
 
-void update_bus(int cycle) {
-	//check for new request
-	if (bus_reg_old.bus_cmd == BUSRD || bus_reg_old.bus_cmd == BUSRDX) {
-		printf("-BUS request in cycle %d - command:%d, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
-		if (abort_flag == 1) { abort_flag = 0; return; }
-		bus_reg_new.bus_mode = 1;//set bus mode to busy
-		bus_reg_new.timer = 1;
-		bus_reg_new.bus_cmd = 0;
-		return;
-	}
-	//check for flush request from one of the cores-> need to update main memory
-	if (bus_reg_old.bus_cmd ==FLUSH && (bus_reg_old.bus_origid!=4)) {
-		printf("-FLUSH request  in cycle %d - data: 0x%08x, address: 0x%08x from core: %d\n",cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
-		bus_reg_new.bus_mode = 2;//set bus mode to busy
-		bus_reg_new.timer = 1;
-		bus_reg_new.bus_cmd = 0;
-	}
-		
-	//handle with busRd/BuesRdX/FLUSH
-	if (bus_reg_old.bus_mode != 0) {
-		if (bus_reg_old.timer == 63) {//bus finish reading from memory after 64 cycles (decrease -1 because flops delay)
-			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
-				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
-			}
-			else printf("finish updating the main memory in cycle: %d!\n",cycle);
-			bus_reg_new.bus_mode = 0;//set bus mode to free
-		}
-		else {
-			bus_reg_new.timer++;//+1 timer
-			bus_reg_new.bus_mode = bus_reg_old.bus_mode;
-			bus_reg_new.bus_addr = bus_reg_old.bus_addr;
-		}
-	}
-	if ((bus_reg_old.bus_cmd == FLUSH) && (bus_reg_old.bus_origid == 4)) {//if flush from bus in the last cycle
-		bus_reg_new.bus_mode = 0;//set bus mode to free
-		bus_reg_new.bus_cmd = 0;
-		printf("-FLUSH  in cycle %d - data: 0x%08x, address: 0x%08x \n",cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr);
-	}
-}
 
-void abort_bus() {
-	abort_flag=1;
-}
 
-int bus_is_busy() {
-	return (bus_reg_old.bus_cmd || bus_reg_old.bus_mode);
+
+int bus_is_busy_in_next_cycle() {
+	return (bus_reg_new.bus_cmd || bus_reg_old.bus_mode);
 }
 
 void ReadBusLines(int * bus_origid,int * bus_cmd, int *bus_addr, int *bus_data){
@@ -156,6 +113,45 @@ void write_block_to_main_memory(CACHE* cache, int index) {
 	Flush(address, data, cache->id);
 }
 
+void update_main_memory(int cycle) {
+	//check for new request
+	if (bus_reg_old.bus_cmd == BUSRD || bus_reg_old.bus_cmd == BUSRDX) {
+		printf("-BUS request in cycle %d - command:%d, address: 0x%08x from core: %d\n", cycle, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		/*if (abort_flag == 1) { abort_flag = 0; return; }*/
+		bus_reg_new.bus_mode = 1;//set bus mode to busy
+		bus_reg_new.timer = 1;
+		bus_reg_new.bus_cmd = 0;
+		return;
+	}
+	//check for flush request from one of the cores-> need to update main memory
+	if (bus_reg_old.bus_cmd == FLUSH && (bus_reg_old.bus_origid != 4)) {
+		printf("-FLUSH request  in cycle %d - data: 0x%08x, address: 0x%08x from core: %d\n", cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
+		bus_reg_new.bus_mode = 2;//set bus mode to busy
+		bus_reg_new.timer = 1;
+		bus_reg_new.bus_cmd = 0;
+	}
+
+	//handle with busRd/BuesRdX/FLUSH
+	if (bus_reg_old.bus_mode != 0) {
+		if (bus_reg_old.timer == 63) {//bus finish reading from memory after 64 cycles (decrease -1 because flops delay)
+			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
+				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
+			}
+			else printf("finish updating the main memory in cycle: %d!\n", cycle);//finsih update the main memory 
+			bus_reg_new.bus_mode = 0;//set bus mode to free
+		}
+		else {
+			bus_reg_new.timer++;//+1 timer
+			bus_reg_new.bus_mode = bus_reg_old.bus_mode;
+			bus_reg_new.bus_addr = bus_reg_old.bus_addr;
+		}
+	}
+	if ((bus_reg_old.bus_cmd == FLUSH) && (bus_reg_old.bus_origid == 4)) {//if flush from bus in the last cycle
+		bus_reg_new.bus_mode = 0;//set bus mode to free
+		bus_reg_new.bus_cmd = 0;
+		printf("-FLUSH  in cycle %d - data: 0x%08x, address: 0x%08x \n", cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr);
+	}
+}
 
 /*********************CACHE FUNCTIONS*****************/
 /*cache: the cache is in size of 256 rows (TSRAM and DSRAM),
@@ -177,7 +173,7 @@ void UpdateCache(CACHE* cache ,int address,int data, int new_mode) {
 	//update DSRAM
 	cache->DSRAM[index] = data;
 
-	printf("cache update in index: %d, new row in TSRAM: %08x,new row in DSRAM: %08x \n", index, cache->TSRAM[index], cache->DSRAM[index]);
+	printf("cache update from bus lines in index: %d, new row in TSRAM: %08x,new row in DSRAM: %08x \n", index, cache->TSRAM[index], cache->DSRAM[index]);
 }
 
 /*return 1 if cache hit, otherwise return*/
@@ -205,7 +201,7 @@ int GetDataFromCacheExclusive(CACHE* cache, int address, int* data) {
 			return 1;//cache hit
 		}
 	}
-	printf("write miss! address: 0x%08x\n", address);
+	//printf("write miss! address: 0x%08x\n", address);
 	return 0;//cache miss
 }
 
@@ -251,7 +247,7 @@ void WriteToCache(CACHE *cache, int address, int data) {
 
 		//update DSRAM
 	cache->DSRAM[index] = data;
-	printf("write cache successed to block in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
+	//printf("write cache successed to block in index: %d,new row in DSRAM: %08x \n", index, cache->DSRAM[index]);
 	return;
 }
 

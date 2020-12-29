@@ -4,10 +4,10 @@
 /*********************GLOBAL VARS	*****************/
 
 //this variables hold in index 'i' the number of 'read_hit' for core 'i' (and so on)
-int read_hit[CORES_NUM] = { 0 };
-int write_hit[CORES_NUM] = { 0 };
-int read_miss[CORES_NUM] = { 0 };
-int write_miss[CORES_NUM] = { 0 };
+int read_hit[CORE_NUM] = { 0 };
+int write_hit[CORE_NUM] = { 0 };
+int read_miss[CORE_NUM] = { 0 };
+int write_miss[CORE_NUM] = { 0 };
 /*********************SIMULATOR FUNCTIONS*****************/
 // the function return the new status of the memory  { WAITING = 0, DONE = 1, CACHE_MISS = 2 }
 int LoadWord(int address, int* data,CORE *core, int prev_status) {
@@ -26,7 +26,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 		break;
 
 	case CONFLICT_MISS:
-		if (!bus_is_busy()) {//check if bus is free
+		if (!bus_is_busy_in_next_cycle()) {//check if bus is free
 			write_block_to_main_memory(cache, address % CHACHE_SIZE);//update the current block from the cache in the main memmory
 			return CACHE_MISS;
 		}
@@ -34,7 +34,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 		break;
 
 	case CACHE_MISS:
-		if (!bus_is_busy()) {//check if bus is free
+		if (!bus_is_busy_in_next_cycle()) {//check if bus is free
 			BusRd(core->id, address);//update bus 
 			return WAITING;
 		}
@@ -86,7 +86,7 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 		break;
 
 	case CONFLICT_MISS:
-		if (!bus_is_busy()) {//check if bus is free
+		if (!bus_is_busy_in_next_cycle()) {//check if bus is free
 			write_block_to_main_memory(cache, address % CHACHE_SIZE);//update the current block from the cache in the main memmory
 			return CACHE_MISS;
 		}
@@ -95,7 +95,7 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 
 	case CACHE_MISS:
 		//if address not on the cache, send a BusRdX request on the bus
-		if (!bus_is_busy()) {//check if bus is free
+		if (!bus_is_busy_in_next_cycle()) {//check if bus is free
 			BusRdX(core->id, address);//update bus 
 			return WAITING;
 		}
@@ -128,7 +128,7 @@ void InitialCore(CORE *core,int id_core) {
 in MODIFIED mode, than abort the requset and flush the data to the core that sent the request
 in addition, if the core see BusRdx request from another core of an address that in his cache in SHARE mode don't help the other core and invalidate the block
 this function need to be for every core and need to be update every cycle*/
-int SNOOPING(CORE* core) {
+int Snooping(CORE* core) {
 	int bus_origid, bus_cmd, bus_addr, bus_data;
 	int data, mode,index;
 	CACHE* cache = &(core->cache);
@@ -139,7 +139,6 @@ int SNOOPING(CORE* core) {
 		if (address_in_cache(bus_addr, cache, &mode)) {//check if address in cache 
 			if (mode == MODIFIED) {//if the most update data is in this cache in 'M' mode than Flush
 				GetDataFromCacheExclusive(cache, bus_addr, &data);
-				abort_bus();
 				Flush(bus_addr, data, core->id);//share with other cores and update main memory
 				cache->TSRAM[index] = (INVALID << 12) | TAG_BITS(cache->TSRAM[index]);// change mode to INVALID
 				printf("core num: %d aborted bus and FLUSH to core:%d. address:0x%08x, data:0x%08x\n", core->id, bus_origid, bus_addr, data);
@@ -154,7 +153,6 @@ int SNOOPING(CORE* core) {
 	}
 	if ((bus_cmd == BUSRD) && (bus_origid != core->id)) {//if BusRd request from another core
 		if (GetDataFromCacheExclusive(cache, bus_addr, &data)) {//if the most update data is in this cache in 'M' mode than Flush
-			abort_bus();
 			Flush(bus_addr, data, core->id);//share with other cores and update main memory
 			cache->TSRAM[index] = (SHARED << 12) | TAG_BITS(cache->TSRAM[index]);// change mode to share
 			printf("core num: %d aborted bus and FLUSH to core:%d. address:0x%08x, data:0x%08x\n", core->id, bus_origid, bus_addr, data);
@@ -203,4 +201,11 @@ int StoreConditional(int address, int *new_data, CORE* core, int prev_status, in
 		printf("INFO: SC failed!\n");
 		return prev_status;
 	}
+}
+
+void get_hits_and_miss(int core_index, int *read_hit_,int *write_hit_,int *read_miss_,int *write_miss_) {
+	*read_hit_ = read_hit[core_index];
+	*write_hit_ =write_hit[core_index];
+	*read_miss_ = read_miss[core_index];
+	*write_miss_ = write_miss[core_index];
 }

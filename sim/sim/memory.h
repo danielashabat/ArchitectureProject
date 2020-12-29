@@ -20,7 +20,7 @@
 #define MODIFIED 2
 
 #define PC_MASK(PC) 0X3FF&PC
-#define CORES_NUM 4//number of cores 
+
 
 
 typedef enum { NO_COMMAND = 0, BUSRD = 1, BUSRDX = 2, FLUSH = 3 } bus_commands;
@@ -53,10 +53,9 @@ int GetDataFromCacheExclusive(CACHE* cache, int address, int* data);
 void UpdateCache(CACHE* cache, int address, int data, int new_mode);
 void WriteToCache(CACHE* cache, int address, int data);
 
-void abort_bus();
-void sample_bus(int cycle);
-void update_bus(int cycle);
-int bus_is_busy();
+void sample_bus();
+void update_main_memory(int cycle);
+int bus_is_busy_in_next_cycle();
 void ReadBusLines(int* bus_origid, int* bus_cmd, int* bus_addr, int* bus_data);
 void InitialBus();
 void BusRd(int core_index, int address);

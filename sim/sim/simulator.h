@@ -10,8 +10,9 @@
 
 /*********************MACROS*****************/
 typedef enum { WAITING = 0, DONE = 1, CACHE_MISS = 2 , CONFLICT_MISS=3} MEM_STATUS;
+#define CORE_NUM 4//number of cores to run
 
-
+/*********************STRUCTS DECLARATION	*****************/
 
 typedef struct Core {
 	FILE* IMEM;
@@ -54,13 +55,13 @@ int StoreWord(int address,//the address you want to read
 	CORE* core, //pointer to the core that running this proccess
 	int prev_status);//the previos status from the last run of LoadWord
 
-int SNOOPING(CORE* core);
+int Snooping(CORE* core);
 
 int LoadLinked(int address, int* data, CORE* core, int prev_status, int* watch_flag);
 int StoreConditional(int address, int* new_data, CORE* core, int prev_status, int* watch_flag);
 int update_watch_flag(int* watch_flag, CORE* core);
 
-
+void get_hits_and_miss(int core_index, int* read_hit_, int* write_hit_, int* read_miss_, int* write_miss_);
 
 #endif 
 #pragma once
