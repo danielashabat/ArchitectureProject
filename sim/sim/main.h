@@ -68,7 +68,7 @@ typedef struct {
 int Stall_Data_Hazard(Reg* r_o, Reg* r_n);
 int Changing_opcode_list(int opcode);
 void Reset_Reg(Reg* r);
-void Simulator(FILE* imem[], FILE* core_trace[], FILE* stats[], FILE* memin, FILE* memout);
+void Simulator(FILE* imem[], FILE* core_trace[], FILE* stats[], FILE* dsram[], FILE* tsram[], FILE* memin, FILE* memout, FILE* bustrace);
 int Checking_halt_for_all(int a[], int num);
 void Sampling_Reg(Reg* r_o, Reg* r_n);
 void FETCH(FILE* imem, Reg* r_o, Reg* r_n);

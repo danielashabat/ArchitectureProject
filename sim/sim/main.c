@@ -17,9 +17,12 @@ stats2.txt stats3.txt
 int main(int argc, char* argv[]) {
 	FILE* imem[CORE_NUM] = { NULL };
 	FILE* core_trace[CORE_NUM] = { NULL };
+	FILE* dsram[CORE_NUM] = { NULL };
+	FILE* tsram[CORE_NUM] = { NULL };
 	FILE *stats[CORE_NUM] = { NULL };
 	FILE *memin = NULL;
 	FILE* memout = NULL;
+	FILE* bustrace = NULL;
 	int i = 0;
 	char file_name[FILE_LEN];
 	
@@ -30,15 +33,17 @@ int main(int argc, char* argv[]) {
 
 	if (argc == 1) {//default input arguments
 		memin = fopen("memin.txt", "r");
+		memout = fopen("memout.txt", "w");
+		bustrace = fopen("bustrace.txt", "w");
 		
 		for (i = 0; i < CORE_NUM; i++) {
 			sprintf(file_name, "imem%d.txt", i); imem[i] = fopen(file_name, "r");
-			
 			sprintf(file_name, "core%dtrace.txt", i); core_trace[i] = fopen(file_name, "w");
-			
 			sprintf(file_name, "stats%d.txt", i); stats[i] = fopen(file_name, "w");
+			sprintf(file_name, "dsram%d.txt", i); dsram[i] = fopen(file_name, "w");
+			sprintf(file_name, "tsram%d.txt", i); tsram[i] = fopen(file_name, "w");
 			
-			if ((imem[i] == NULL) || (core_trace[i] == NULL ||stats[i]==NULL)) {
+			if ((imem[i] == NULL) || (core_trace[i] == NULL )||(stats[i]==NULL)|| (dsram[i] == NULL)|| (tsram[i] == NULL)) {
 				printf("cant open one of the files\n");
 				return 1;
 			}
@@ -52,12 +57,15 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	Simulator(imem, core_trace,stats, memin, memout);
-	for (i = 0; i < CORE_NUM; i++) { fclose(imem[i]); fclose(core_trace[i]); fclose(stats[i]);}
+	Simulator(imem, core_trace,stats,dsram, tsram ,memin, memout,bustrace);
+	for (i = 0; i < CORE_NUM; i++) {//close files for each core
+		fclose(imem[i]); fclose(core_trace[i]); fclose(stats[i]); fclose(dsram[i]); fclose(tsram[i]);
+	}
+	fclose(bustrace); fclose(memin); fclose(memout);//close general files
 	return 0;
 }
 
-void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[], FILE *memin, FILE *memout)
+void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE *tsram[],FILE *memin, FILE *memout,FILE * bustrace)
 {
 	Reg registers_o[CORE_NUM];
 	Reg registers_n[CORE_NUM];
@@ -76,7 +84,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[], FILE *memin, FILE 
 
 	while (1)
 	{	
-		update_main_memory(cycle_counter);
+		update_main_memory(cycle_counter, bustrace);
 		for ( i = 0; i < CORE_NUM; i++)
 		{
 			if (continue_flag[i] == 0) {
@@ -99,6 +107,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[], FILE *memin, FILE 
 		
 	}
 	for (i = 0; i < CORE_NUM; i++) print_stats(i, stats[i]);
+	print_memout(memout);
 }
 
 

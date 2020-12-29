@@ -54,7 +54,7 @@ void UpdateCache(CACHE* cache, int address, int data, int new_mode);
 void WriteToCache(CACHE* cache, int address, int data);
 
 void sample_bus();
-void update_main_memory(int cycle);
+void update_main_memory(int cycle, FILE* bustrace_file);
 int bus_is_busy_in_next_cycle();
 void ReadBusLines(int* bus_origid, int* bus_cmd, int* bus_addr, int* bus_data);
 void InitialBus();
@@ -63,6 +63,7 @@ void BusRdX(int core_index, int address);
 void Flush(int address, int data, int bus_origid);
 
 void InitialMainMemory(FILE* memin);
+void print_memout(FILE* memout);
 void write_block_to_main_memory(CACHE* cache, int index);
 
 void read_watch_bit(int* bit, int* origid);
