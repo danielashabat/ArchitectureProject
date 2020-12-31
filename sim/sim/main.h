@@ -68,24 +68,24 @@ typedef struct {
 int Stall_Data_Hazard(Reg* r_o, Reg* r_n);
 int Changing_opcode_list(int opcode);
 void Reset_Reg(Reg* r);
-void Simulator(FILE* imem[], FILE* core_trace[], FILE* stats[], FILE* dsram[], FILE* tsram[], FILE* memin, FILE* memout, FILE* bustrace);
+void Simulator(FILE* imem[], FILE* core_trace[], FILE* stats[], FILE* dsram[], FILE* tsram[], FILE* memin, FILE* memout, FILE* bustrace, FILE* regout[]);
 int Checking_halt_for_all(int a[], int num);
 void Sampling_Reg(Reg* r_o, Reg* r_n);
 void FETCH(FILE* imem, Reg* r_o, Reg* r_n);
 void Jump_to_PC(FILE* f, int PC);
-void DECODE(Reg* r_o, Reg* r_n); 
+void DECODE(Reg* r_o, Reg* r_n, int* stall_counter);
 void EXE(Reg* r_o, Reg* r_n);
 void ALU(int* aluout, int alu0, int alu1, int opcode);
 void printr(Reg* r);
-void MEM(Reg* r_o, Reg* r_n, CORE* core);
-int WB(Reg* r_o, Reg* r_n);
+void MEM(Reg* r_o, Reg* r_n, CORE* core, int* stall_counter);
+int WB(Reg* r_o, Reg* r_n, int* instruction_counter);
 void BranchResulotion(Reg* r_o, Reg* r_n);
 void Print_Core_Trace(FILE* f, Reg* r, int cycle);
 void Stall_Memory(Reg* r_o, Reg* r_n);
-
-void print_stats(int core_index, FILE* stats_file);
-
-
+int Check_for_Stalling_Decode(Reg* r);
+void print_stats(int core_index, FILE* stats_file, int cycles, int instructions, int decode_stalls, int memory_stalls);
+void print_reg(FILE* F, Reg* r)
+;
 
 
 #endif 

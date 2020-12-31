@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
 	FILE* dsram[CORE_NUM] = { NULL };
 	FILE* tsram[CORE_NUM] = { NULL };
 	FILE *stats[CORE_NUM] = { NULL };
+	FILE *regout[CORE_NUM] = { NULL };
 	FILE *memin = NULL;
 	FILE* memout = NULL;
 	FILE* bustrace = NULL;
@@ -38,12 +39,13 @@ int main(int argc, char* argv[]) {
 		
 		for (i = 0; i < CORE_NUM; i++) {
 			sprintf(file_name, "imem%d.txt", i); imem[i] = fopen(file_name, "r");
+			sprintf(file_name, "regout%d.txt", i); regout[i] = fopen(file_name, "w");
 			sprintf(file_name, "core%dtrace.txt", i); core_trace[i] = fopen(file_name, "w");
 			sprintf(file_name, "stats%d.txt", i); stats[i] = fopen(file_name, "w");
 			sprintf(file_name, "dsram%d.txt", i); dsram[i] = fopen(file_name, "w");
 			sprintf(file_name, "tsram%d.txt", i); tsram[i] = fopen(file_name, "w");
 			
-			if ((imem[i] == NULL) || (core_trace[i] == NULL )||(stats[i]==NULL)|| (dsram[i] == NULL)|| (tsram[i] == NULL)) {
+			if ((imem[i] == NULL) || (core_trace[i] == NULL )||(stats[i]==NULL)|| (dsram[i] == NULL)|| (tsram[i] == NULL) || (regout[i] == NULL)) {
 				printf("cant open one of the files\n");
 				return 1;
 			}
@@ -57,19 +59,23 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	Simulator(imem, core_trace,stats,dsram, tsram ,memin, memout,bustrace);
+	Simulator(imem, core_trace,stats,dsram, tsram ,memin, memout,bustrace, regout);
 	for (i = 0; i < CORE_NUM; i++) {//close files for each core
-		fclose(imem[i]); fclose(core_trace[i]); fclose(stats[i]); fclose(dsram[i]); fclose(tsram[i]);
+		fclose(imem[i]); fclose(core_trace[i]); fclose(stats[i]); fclose(dsram[i]); fclose(tsram[i]); fclose(regout[i]);
 	}
 	fclose(bustrace); fclose(memin); fclose(memout);//close general files
 	return 0;
 }
 
-void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE *tsram[],FILE *memin, FILE *memout,FILE * bustrace)
+void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE *tsram[],FILE *memin, FILE *memout,FILE * bustrace, FILE *regout[])
 {
 	Reg registers_o[CORE_NUM];
 	Reg registers_n[CORE_NUM];
 	int i = 0;
+	int cycles[CORE_NUM] = { 0 };
+	int instructions[CORE_NUM] = { 0 };
+	int decode_stalls[CORE_NUM] = { 0 };
+	int memory_stalls[CORE_NUM] = { 0 };
 	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_o[i]);
 	for (i = 0; i < CORE_NUM; i++) Reset_Reg(&registers_n[i]);
 	int flag1=1;
@@ -90,11 +96,13 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 			if (continue_flag[i] == 0) {
 				//printf("cycle %d\n", cycle_counter);
 				FETCH(imem[i], &registers_o[i], &registers_n[i]);
-				DECODE(&registers_o[i], &registers_n[i]);
+				DECODE(&registers_o[i], &registers_n[i], &decode_stalls[i]);
 				EXE(&registers_o[i], &registers_n[i]);
-				MEM(&registers_o[i], &registers_n[i], &cores[i]);
-				continue_flag[i] = WB(&registers_o[i], &registers_n[i]);
+				MEM(&registers_o[i], &registers_n[i], &cores[i], &memory_stalls[i]);
+				continue_flag[i] = WB(&registers_o[i], &registers_n[i], &instructions[i]);
+				if (continue_flag[i]) cycles[i] = cycle_counter;
 				Print_Core_Trace(core_trace[i], &registers_o[i], cycle_counter);
+				if (Check_for_Stalling_Decode(&registers_o[i])) decode_stalls[i] = decode_stalls[i] + 1;
 				Sampling_Reg(&registers_o[i], &registers_n[i]);
 				update_watch_flag(&watch_flag[i], &cores[i]);
 			}
@@ -106,10 +114,18 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 		cycle_counter++;
 		
 	}
-	for (i = 0; i < CORE_NUM; i++) print_stats(i, stats[i]);
+	for (i = 0; i < CORE_NUM; i++) {
+		print_stats(i, stats[i], cycles[i], instructions[i], decode_stalls[i], memory_stalls[i]);
+		print_reg(regout[i], &registers_o[i]);
+	}
+	
 	print_memout(memout);
 }
 
+void print_reg(FILE* F, Reg* r)
+{
+	fprintf(F, "%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X\n%08X \n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
+}
 
 int Checking_halt_for_all(int a[], int num)
 {
@@ -117,6 +133,14 @@ int Checking_halt_for_all(int a[], int num)
 	return 1;
 }
 
+int Check_for_Stalling_Decode(Reg* r) {
+	if (r->pc_DE == -1 && r->pc_FD!= -1) {
+		if ((r->pc_EM == -1 && r->pc_MW == -1) || (r->pc_EM == -1 && r->pc_MW != -1) || (r->pc_EM != -1 && r->pc_MW != -1)) return 1;
+			
+	}
+	else return 0;
+	return 0;
+}
 
 
 
@@ -195,10 +219,11 @@ void FETCH(FILE *imem, Reg* r_o, Reg* r_n)
 		r_n->pc_FD = r_o->pc_FF;
 	}
 	else r_n->pc_FD = -1;
+	
 	return;
 }
 
-void DECODE(Reg* r_o, Reg* r_n)  // needs to fix halt 
+void DECODE(Reg* r_o, Reg* r_n, int *stall_counter)  // needs to fix halt 
 {
 	r_n->reg[1] = r_o->inst & 0x00000fff;
 	r_o->reg[1] = r_o->inst & 0x00000fff; //test
@@ -220,6 +245,9 @@ void DECODE(Reg* r_o, Reg* r_n)  // needs to fix halt
 		r_n->pc_FD = r_o->pc_FD;
 		r_n->pc_DE = -1;
 		r_n->opcode_DE = -1;
+		//if ((r_o->opcode_MW!=-1 && r_o->opcode_EM == -1 )|| (r_o->opcode_EM== -1 && r_o->opcode_MW==-1) ) *stall_counter = *stall_counter + 1; //test
+		//*stall_counter = *stall_counter + 1;
+		
 	}
 	else
 	{
@@ -308,7 +336,7 @@ void EXE(Reg* r_o, Reg* r_n)
 	return;
 }
 
-void MEM(Reg* r_o, Reg* r_n, CORE *core)
+void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter)
 {
 	
 	if (r_o->opcode_EM == LW || r_o->opcode_EM == SW)
@@ -318,6 +346,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core)
 			if ((r_n->status =LoadWord(r_o->aluout, &r_n->data, core, r_o->status))!= DONE) //data not ready
 			{
 				Stall_Memory(r_o,r_n);
+				*stall_counter = *stall_counter + 1;
 				return;
 
 			}
@@ -329,6 +358,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core)
 			{
 				
 				Stall_Memory(r_o, r_n);
+				*stall_counter = *stall_counter + 1;
 				return;
 			}
 		}
@@ -363,14 +393,16 @@ void Stall_Memory(Reg* r_o, Reg* r_n)
 	return;
 }
 
-int WB(Reg* r_o, Reg* r_n)
+int WB(Reg* r_o, Reg* r_n, int* instruction_counter)
 {
 	
+	if (r_o->opcode_MW != -1) *instruction_counter = *instruction_counter + 1;
 	if (r_o->opcode_MW == 20) return 1;
 	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)|| r_o->opcode_MW==LW)
 	{
 		r_n->reg[r_o->rd_MW] = r_o->data;
 	}
+	
 	return 0;
 	
 }
@@ -402,12 +434,12 @@ void ALU(int* aluout, int alu0, int alu1, int opcode)
 		*aluout = alu0 * alu1;
 		break;
 	case SLL:
-		*aluout = alu0 << alu1;
+		*aluout = (unsigned)alu0 << alu1;
 		break;
-	//case SRA:
-		//*aluout = alu0  alu1;
+	case SRA:
+		*aluout = alu0 >> alu1; //check 
 	case SRL:
-		*aluout = alu0 >> alu1;
+		*aluout = (unsigned)alu0 >> alu1;
 		break;
 	case LW:
 		*aluout = alu0 + alu1;
@@ -444,12 +476,13 @@ void Print_Core_Trace(FILE* f, Reg* r, int cycle)
 	fprintf(f, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x \n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
 }
 
-void print_stats(int core_index, FILE* stats_file) {
+void print_stats(int core_index, FILE* stats_file, int cycles, int instructions, int decode_stalls, int memory_stalls) {
 	int read_hit;
 	int write_hit;
 	int read_miss;
 	int write_miss;
 	get_hits_and_miss(core_index ,&read_hit, &write_hit, &read_miss, &write_miss);
+	fprintf(stats_file, "cycles %d\ninstructions %d\nread hit %d\nwrite hit %d\nread_miss %d\nwrite_miss %d\ndecode_stall %d\nmem_stall %d\n", cycles+1, instructions-4, read_hit, write_hit, read_miss, write_miss, decode_stalls, memory_stalls);
 	printf("-stats core: %d - read hits:%d, write hits: %d, read_miss: %d, write_miss: %d \n", core_index, read_hit, write_hit, read_miss, write_miss);
 	//print to file stats
 }
