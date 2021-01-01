@@ -4,5 +4,5 @@ read hit 100
 write hit 100
 read_miss 1
 write_miss 2
-decode_stall 505
+decode_stall 606
 mem_stall 198

@@ -77,15 +77,15 @@ void DECODE(Reg* r_o, Reg* r_n, int* stall_counter);
 void EXE(Reg* r_o, Reg* r_n);
 void ALU(int* aluout, int alu0, int alu1, int opcode);
 void printr(Reg* r);
-void MEM(Reg* r_o, Reg* r_n, CORE* core, int* stall_counter);
+void MEM(Reg* r_o, Reg* r_n, CORE* core, int* stall_counter, int* watch_flag);
 int WB(Reg* r_o, Reg* r_n, int* instruction_counter);
 void BranchResulotion(Reg* r_o, Reg* r_n);
 void Print_Core_Trace(FILE* f, Reg* r, int cycle);
 void Stall_Memory(Reg* r_o, Reg* r_n);
-int Check_for_Stalling_Decode(Reg* r);
+//int Check_for_Stalling_Decode(Reg* r);
 void print_stats(int core_index, FILE* stats_file, int cycles, int instructions, int decode_stalls, int memory_stalls);
-void print_reg(FILE* F, Reg* r)
-;
+void print_reg(FILE* F, Reg* r);
+
 
 
 #endif 

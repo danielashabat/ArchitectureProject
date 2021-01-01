@@ -98,11 +98,11 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 				FETCH(imem[i], &registers_o[i], &registers_n[i]);
 				DECODE(&registers_o[i], &registers_n[i], &decode_stalls[i]);
 				EXE(&registers_o[i], &registers_n[i]);
-				MEM(&registers_o[i], &registers_n[i], &cores[i], &memory_stalls[i]);
+				MEM(&registers_o[i], &registers_n[i], &cores[i], &memory_stalls[i], &watch_flag[i]);
 				continue_flag[i] = WB(&registers_o[i], &registers_n[i], &instructions[i]);
 				if (continue_flag[i]) cycles[i] = cycle_counter;
 				Print_Core_Trace(core_trace[i], &registers_o[i], cycle_counter);
-				if (Check_for_Stalling_Decode(&registers_o[i])) decode_stalls[i] = decode_stalls[i] + 1;
+				//if (Check_for_Stalling_Decode(&registers_o[i])) decode_stalls[i] = decode_stalls[i] + 1;
 				Sampling_Reg(&registers_o[i], &registers_n[i]);
 				update_watch_flag(&watch_flag[i], &cores[i]);
 			}
@@ -113,6 +113,12 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 		sample_bus();
 		cycle_counter++;
 		
+	}
+	while (bus_is_busy_in_next_cycle()) {
+		
+		update_main_memory(cycle_counter, bustrace);
+		sample_bus();
+		cycle_counter++;
 	}
 	for (i = 0; i < CORE_NUM; i++) {
 		print_stats(i, stats[i], cycles[i], instructions[i], decode_stalls[i], memory_stalls[i]);
@@ -133,14 +139,14 @@ int Checking_halt_for_all(int a[], int num)
 	return 1;
 }
 
-int Check_for_Stalling_Decode(Reg* r) {
-	if (r->pc_DE == -1 && r->pc_FD!= -1) {
-		if ((r->pc_EM == -1 && r->pc_MW == -1) || (r->pc_EM == -1 && r->pc_MW != -1) || (r->pc_EM != -1 && r->pc_MW != -1)) return 1;
-			
-	}
-	else return 0;
-	return 0;
-}
+//int Check_for_Stalling_Decode(Reg* r) {
+//	if (r->pc_DE == -1 && r->pc_FD!= -1) {
+//		if ((r->pc_EM == -1 && r->pc_MW == -1) || (r->pc_EM == -1 && r->pc_MW != -1) || (r->pc_EM != -1 && r->pc_MW != -1)) return 1;
+//			
+//	}
+//	else return 0;
+//	return 0;
+//}
 
 
 
@@ -245,8 +251,8 @@ void DECODE(Reg* r_o, Reg* r_n, int *stall_counter)  // needs to fix halt
 		r_n->pc_FD = r_o->pc_FD;
 		r_n->pc_DE = -1;
 		r_n->opcode_DE = -1;
-		//if ((r_o->opcode_MW!=-1 && r_o->opcode_EM == -1 )|| (r_o->opcode_EM== -1 && r_o->opcode_MW==-1) ) *stall_counter = *stall_counter + 1; //test
-		//*stall_counter = *stall_counter + 1;
+		
+		if (r_o->status==DONE) *stall_counter = *stall_counter + 1; 
 		
 	}
 	else
@@ -336,10 +342,13 @@ void EXE(Reg* r_o, Reg* r_n)
 	return;
 }
 
-void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter)
+void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag)
 {
 	
-	if (r_o->opcode_EM == LW || r_o->opcode_EM == SW)
+	//LoadLinked(int address, int* data, CORE* core, int prev_status, int* watch_flag);
+	//int StoreConditional(int address, int* new_data, CORE * core, int prev_status, int* watch_flag);
+	
+	if (r_o->opcode_EM >= LW && r_o->opcode_EM<= SC)
 	{
 		if (r_o->opcode_EM == LW)
 		{
@@ -362,6 +371,28 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter)
 				return;
 			}
 		}
+		if (r_o->opcode_EM == LL)
+		{
+			if ((r_n->status = LoadLinked(r_o->aluout, &r_n->data, core, r_o->status, watch_flag)) != DONE) //data not ready
+			{
+				Stall_Memory(r_o, r_n);
+				*stall_counter = *stall_counter + 1;
+				return;
+			}
+			
+		}
+		if (r_o->opcode_EM == SC)
+		{
+			if ((r_n->status = StoreConditional(r_o->aluout, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag)) != DONE)
+			{
+
+				Stall_Memory(r_o, r_n);
+				*stall_counter = *stall_counter + 1;
+				return;
+			}
+		}
+
+
 	}
 	else {
 		r_n->data = r_o->aluout;
@@ -400,7 +431,7 @@ int WB(Reg* r_o, Reg* r_n, int* instruction_counter)
 	if (r_o->opcode_MW == 20) return 1;
 	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)|| r_o->opcode_MW==LW)
 	{
-		r_n->reg[r_o->rd_MW] = r_o->data;
+		if (r_o->rd_MW!=0 && r_o->rd_MW != 1) r_n->reg[r_o->rd_MW] = r_o->data;
 	}
 	
 	return 0;
@@ -442,12 +473,14 @@ void ALU(int* aluout, int alu0, int alu1, int opcode)
 		*aluout = (unsigned)alu0 >> alu1;
 		break;
 	case LW:
-		*aluout = alu0 + alu1;
-		break;
+	case LL:
 	case SW:
+	case SC:
+
 		*aluout = alu0 + alu1;
 		break;
-
+	
+		
 	}
 }
 
