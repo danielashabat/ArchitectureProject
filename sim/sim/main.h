@@ -27,7 +27,7 @@
 #define HALT 20
 
 #define REG_NUM 16
-#define ARGC_NUM 3//need to include  'sim.exe'
+#define ARGC_NUM 28//need to include  'sim.exe'
 
  
 

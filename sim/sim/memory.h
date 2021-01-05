@@ -52,6 +52,7 @@ int GetDataFromCache(CACHE* cache, int address, int* data);
 int GetDataFromCacheExclusive(CACHE* cache, int address, int* data);
 void UpdateCache(CACHE* cache, int address, int data, int new_mode);
 void WriteToCache(CACHE* cache, int address, int data);
+void print_dsram_and_tsram(FILE* dsram, FILE* tsram, CACHE* cache);
 
 void sample_bus();
 void update_main_memory(int cycle, FILE* bustrace_file);

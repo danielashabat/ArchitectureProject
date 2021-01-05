@@ -26,7 +26,7 @@ void sample_bus(){
 
 
 int bus_is_busy_in_next_cycle() {
-	return (bus_reg_new.bus_cmd || bus_reg_old.bus_mode);
+	return (bus_reg_new.bus_cmd || bus_reg_new.bus_mode);
 }
 
 void ReadBusLines(int * bus_origid,int * bus_cmd, int *bus_addr, int *bus_data){
@@ -125,7 +125,6 @@ void update_main_memory(int cycle, FILE *bustrace_file) {
 	if (bus_reg_old.bus_cmd == BUSRD || bus_reg_old.bus_cmd == BUSRDX) {
 		printf("-BUS request in cycle %d - command:%d, address: 0x%08x from core: %d\n", cycle, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
 		fprintf(bustrace_file, "%d %d %d %05x %08x \n", cycle, bus_reg_old.bus_origid, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_data);
-		/*if (abort_flag == 1) { abort_flag = 0; return; }*/
 		bus_reg_new.bus_mode = 1;//set bus mode to busy
 		bus_reg_new.timer = 1;
 		bus_reg_new.bus_cmd = 0;
@@ -136,8 +135,9 @@ void update_main_memory(int cycle, FILE *bustrace_file) {
 		printf("-FLUSH request  in cycle %d - data: 0x%08x, address: 0x%08x from core: %d\n", cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr, bus_reg_old.bus_origid);
 		fprintf(bustrace_file,"%d %d %d %05x %08x \n", cycle, bus_reg_old.bus_origid, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_data);
 		bus_reg_new.bus_mode = 2;//set bus mode to busy
-		bus_reg_new.timer = 1;
+		bus_reg_new.timer = 0;
 		bus_reg_new.bus_cmd = 0;
+		return;
 	}
 
 	//handle with busRd/BuesRdX/FLUSH
@@ -146,20 +146,26 @@ void update_main_memory(int cycle, FILE *bustrace_file) {
 			if (bus_reg_old.bus_mode == 1) {//only for busrd/busrsx requests
 				Flush(bus_reg_old.bus_addr, MainMemory[bus_reg_old.bus_addr], 4);
 			}
-			else printf("finish updating the main memory in cycle: %d!\n", cycle);//finsih update the main memory 
+			else {
+				MainMemory[bus_reg_old.bus_addr] = bus_reg_old.bus_data;//update the main memory from bus lines
+				printf("finish updating the main memory in cycle: %d!\n", cycle); 
+			}//finsih update the main memory 
 			bus_reg_new.bus_mode = 0;//set bus mode to free
 		}
 		else {
 			bus_reg_new.timer++;//+1 timer
 			bus_reg_new.bus_mode = bus_reg_old.bus_mode;
 			bus_reg_new.bus_addr = bus_reg_old.bus_addr;
+			bus_reg_new.bus_data = bus_reg_old.bus_data;
 		}
+		return;
 	}
 	if ((bus_reg_old.bus_cmd == FLUSH) && (bus_reg_old.bus_origid == 4)) {//if flush from bus in the last cycle
 		bus_reg_new.bus_mode = 0;//set bus mode to free
 		bus_reg_new.bus_cmd = 0;
 		printf("-FLUSH  in cycle %d - data: 0x%08x, address: 0x%08x \n", cycle, bus_reg_old.bus_data, bus_reg_old.bus_addr);
 		fprintf(bustrace_file,"%d %d %d %05x %08x \n", cycle, bus_reg_old.bus_origid, bus_reg_old.bus_cmd, bus_reg_old.bus_addr, bus_reg_old.bus_data);
+
 	}
 }
 
@@ -170,13 +176,14 @@ TSRAM: each row has 32 bits : [13:12]is MSI bits (state of address), [11:0] is T
 DSRAM:each row is 32 bits long, represent the data of the address from the main memory(the number of line is the index of the address) 
 
 */
-//
-//void print_dsram_and_tsram(FILE* dsram,FILE *tsram) {
-//	for (size_t i = 0; i < CHACHE_SIZE; i++)
-//	{
-//		fprintf(memout, "%08x \n", MainMemory[i]);
-//	}
-//}
+
+void print_dsram_and_tsram(FILE* dsram,FILE *tsram, CACHE* cache) {
+	for (int i = 0; i < CHACHE_SIZE; i++)
+	{
+		fprintf(dsram, "%08x \n", cache->DSRAM[i]);
+		fprintf(tsram, "%08x \n", cache->TSRAM[i]);
+	}
+}
 
 //update cache block in the given address and data in 
 void UpdateCache(CACHE* cache ,int address,int data, int new_mode) {

@@ -38,8 +38,10 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 			BusRd(core->id, address);//update bus 
 			return WAITING;
 		}
-		else 
-			printf("INFO:try to send bus reqeust but bus is busy!\n"); return CACHE_MISS;//need to handle the case the bus busy from another core
+		else {
+			printf("INFO:core %d try to send BusRd reqeust but bus is busy!\n", core->id);
+			return CACHE_MISS;
+		}
 		break;
 
 	case WAITING:
@@ -99,8 +101,10 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 			BusRdX(core->id, address);//update bus 
 			return WAITING;
 		}
-		else
-			printf("INFO:try to send bus reqeust but bus is busy!\n"); return WAITING;//need to handle the case the bus busy from another core
+		else {
+			printf("INFO:core %d try to send BusRd reqeust but bus is busy!\n", core->id);
+			return CACHE_MISS;
+		}
 		break;
 
 
@@ -164,7 +168,7 @@ int Snooping(CORE* core) {
 }
 
 //read watch bit from bus lines and update the watch flag if another core set the watch bit
-int update_watch_flag(int* watch_flag,CORE *core) {
+void update_watch_flag(int* watch_flag,CORE *core) {
 	int watch_bit, watch_origid;
 	if (*watch_flag == 1)//check if watch flag set
 	{
@@ -208,4 +212,9 @@ void get_hits_and_miss(int core_index, int *read_hit_,int *write_hit_,int *read_
 	*write_hit_ =write_hit[core_index];
 	*read_miss_ = read_miss[core_index];
 	*write_miss_ = write_miss[core_index];
+}
+
+void print_dsram_and_tsram_wrapper(FILE* dsram, FILE* tsram, CORE* core) {
+
+	print_dsram_and_tsram(dsram, tsram, &core->cache);
 }

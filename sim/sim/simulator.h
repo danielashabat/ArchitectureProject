@@ -59,9 +59,9 @@ int Snooping(CORE* core);
 
 int LoadLinked(int address, int* data, CORE* core, int prev_status, int* watch_flag);
 int StoreConditional(int address, int* new_data, CORE* core, int prev_status, int* watch_flag);
-int update_watch_flag(int* watch_flag, CORE* core);
+void update_watch_flag(int* watch_flag, CORE* core);
 
 void get_hits_and_miss(int core_index, int* read_hit_, int* write_hit_, int* read_miss_, int* write_miss_);
-
+void print_dsram_and_tsram_wrapper(FILE* dsram, FILE* tsram, CORE* core);
 #endif 
 #pragma once

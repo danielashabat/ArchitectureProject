@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 	FILE* memout = NULL;
 	FILE* bustrace = NULL;
 	int i = 0;
-	char file_name[FILE_LEN];
+	char file_name[FILE_LEN] = {0};
 	
 	if ((argc != ARGC_NUM) && (argc != 1)) {
 		printf("ERROR: there is %d input arguments. (need %d input arguments or 1 argument )\n", argc, ARGC_NUM);
@@ -51,9 +51,27 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
+	else {//take arguments from command line 
+		memin = fopen(argv[5], "r");
+		memout = fopen(argv[6], "w");
+		bustrace = fopen(argv[15], "w");
 
-	//memout = fopen(argv[3], "w");
-	if ((memin==NULL)) {
+		for (i = 0; i < CORE_NUM; i++) {
+			 imem[i] = fopen(argv[i+1], "r");
+			 regout[i] = fopen(argv[i + 7], "w");
+			 core_trace[i] = fopen(argv[i + 11], "w");
+			 stats[i] = fopen(argv[i + 24], "w");
+			 dsram[i] = fopen(argv[i + 16], "w");
+			 tsram[i] = fopen(argv[i + 20], "w");
+
+			if ((imem[i] == NULL) || (core_trace[i] == NULL) || (stats[i] == NULL) || (dsram[i] == NULL) || (tsram[i] == NULL) || (regout[i] == NULL)) {
+				printf("cant open one of the files\n");
+				return 1;
+			}
+		}
+	}
+
+	if ((memin==NULL)||(memout==NULL)||(bustrace==NULL)) {
 		printf("cant open one of the files\n");
 		return 1;
 	}
@@ -115,7 +133,6 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 		
 	}
 	while (bus_is_busy_in_next_cycle()) {
-		
 		update_main_memory(cycle_counter, bustrace);
 		sample_bus();
 		cycle_counter++;
@@ -123,6 +140,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 	for (i = 0; i < CORE_NUM; i++) {
 		print_stats(i, stats[i], cycles[i], instructions[i], decode_stalls[i], memory_stalls[i]);
 		print_reg(regout[i], &registers_o[i]);
+		print_dsram_and_tsram_wrapper(dsram[i], tsram[i], &cores[i]);
 	}
 	
 	print_memout(memout);
@@ -516,6 +534,4 @@ void print_stats(int core_index, FILE* stats_file, int cycles, int instructions,
 	int write_miss;
 	get_hits_and_miss(core_index ,&read_hit, &write_hit, &read_miss, &write_miss);
 	fprintf(stats_file, "cycles %d\ninstructions %d\nread hit %d\nwrite hit %d\nread_miss %d\nwrite_miss %d\ndecode_stall %d\nmem_stall %d\n", cycles+1, instructions-4, read_hit, write_hit, read_miss, write_miss, decode_stalls, memory_stalls);
-	printf("-stats core: %d - read hits:%d, write hits: %d, read_miss: %d, write_miss: %d \n", core_index, read_hit, write_hit, read_miss, write_miss);
-	//print to file stats
 }
