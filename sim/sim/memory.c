@@ -197,7 +197,7 @@ void UpdateCache(CACHE* cache ,int address,int data, int new_mode) {
 	//update DSRAM
 	cache->DSRAM[index] = data;
 
-	printf("cache update from bus lines in index: %d, new row in TSRAM: %08x,new row in DSRAM: %08x \n", index, cache->TSRAM[index], cache->DSRAM[index]);
+	printf("cache in core update from bus lines in index: %d, new row in TSRAM: %08x,new row in DSRAM: %08x \n",cache->id, index, cache->TSRAM[index], cache->DSRAM[index]);
 }
 
 /*return 1 if cache hit, otherwise return*/

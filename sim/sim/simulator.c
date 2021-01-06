@@ -39,7 +39,7 @@ int LoadWord(int address, int* data,CORE *core, int prev_status) {
 			return WAITING;
 		}
 		else {
-			printf("INFO:core %d try to send BusRd reqeust but bus is busy!\n", core->id);
+			//printf("INFO:core %d try to send BusRd reqeust but bus is busy!\n", core->id);
 			return CACHE_MISS;
 		}
 		break;
@@ -102,7 +102,7 @@ int StoreWord(int address, int new_data, CORE* core, int prev_status) {
 			return WAITING;
 		}
 		else {
-			printf("INFO:core %d try to send BusRd reqeust but bus is busy!\n", core->id);
+			//printf("INFO:core %d try to send BusRd reqeust but bus is busy!\n", core->id);
 			return CACHE_MISS;
 		}
 		break;

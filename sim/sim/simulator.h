@@ -34,7 +34,8 @@ void InitialCore(CORE* core,//need to be a valid pointer to core
 /*LoadWord function is for the memory part in the pipe, this function get an address the core want to read and than assign it 
 to data pointer.
 LoadWord can take more than one cycle. depend if the address is in the cache or in the main memory.
-LoadWord return the status of the function after one cycle(one run of the command), the possible return values:
+LoadWord return the status of the function after one cycle(one run of the command).
+the possible return values:
 0- the function is in WAITING status.namely, the function wait for the data from the main memory and need more cycles to finish.
 1- the function is DONE. no need for more cycles.
 2- the function had CACHE MISS in this cycle. so it's need more cycles to finish*/

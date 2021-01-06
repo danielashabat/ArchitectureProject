@@ -137,7 +137,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 		sample_bus();
 		cycle_counter++;
 	}
-	for (i = 0; i < CORE_NUM; i++) {
+	for (i = 0; i < CORE_NUM ; i++) {
 		print_stats(i, stats[i], cycles[i], instructions[i], decode_stalls[i], memory_stalls[i]);
 		print_reg(regout[i], &registers_o[i]);
 		print_dsram_and_tsram_wrapper(dsram[i], tsram[i], &cores[i]);
@@ -366,7 +366,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag)
 	//LoadLinked(int address, int* data, CORE* core, int prev_status, int* watch_flag);
 	//int StoreConditional(int address, int* new_data, CORE * core, int prev_status, int* watch_flag);
 	
-	if (r_o->opcode_EM >= LW && r_o->opcode_EM<= SC)
+	if (r_o->opcode_EM >= LW && r_o->opcode_EM <= SC)
 	{
 		if (r_o->opcode_EM == LW)
 		{
