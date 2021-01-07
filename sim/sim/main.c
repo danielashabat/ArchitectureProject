@@ -8,11 +8,7 @@
 #include "simulator.h"
 
 #define FILE_LEN 20
-/*command line: sim.exe imem0.txt imem1.txt imem2.txt imem3.txt memin.txt memout.txt
-regout0.txt regout1.txt regout2.txt regout3.txt core0trace.txt core1trace.txt
-core2trace.txt core3trace.txt bustrace.txt dsram0.txt dsram1.txt dsram2.txt
-dsram3.txt tsram0.txt tsram1.txt tsram2.txt tsram3.txt stats0.txt stats1.txt
-stats2.txt stats3.txt
+/*command line: sim.exe imem0.txt imem1.txt imem2.txt imem3.txt memin.txt memout.txt regout0.txt regout1.txt regout2.txt regout3.txt core0trace.txt core1trace.txt core2trace.txt core3trace.txt bustrace.txt dsram0.txt dsram1.txt dsram2.txt dsram3.txt tsram0.txt tsram1.txt tsram2.txt tsram3.txt stats0.txt stats1.txt stats2.txt stats3.txt
 */
 int main(int argc, char* argv[]) {
 	FILE* imem[CORE_NUM] = { NULL };
@@ -109,15 +105,15 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 	while (1)
 	{	
 		update_main_memory(cycle_counter, bustrace);
-		for ( i = 0; i < CORE_NUM; i++)
+		for ( i = 0; i < CORE_NUM; i++)  // i < CORE_NUM
 		{
 			if (continue_flag[i] == 0) {
 				//printf("cycle %d\n", cycle_counter);
 				FETCH(imem[i], &registers_o[i], &registers_n[i]);
 				DECODE(&registers_o[i], &registers_n[i], &decode_stalls[i]);
 				EXE(&registers_o[i], &registers_n[i]);
-				MEM(&registers_o[i], &registers_n[i], &cores[i], &memory_stalls[i], &watch_flag[i]);
-				continue_flag[i] = WB(&registers_o[i], &registers_n[i], &instructions[i]);
+				MEM(&registers_o[i], &registers_n[i], &cores[i], &memory_stalls[i], &watch_flag[i], &instructions[i]);
+				continue_flag[i] = WB(&registers_o[i], &registers_n[i]); //, &instructions[i]
 				if (continue_flag[i]) cycles[i] = cycle_counter;
 				Print_Core_Trace(core_trace[i], &registers_o[i], cycle_counter);
 				//if (Check_for_Stalling_Decode(&registers_o[i])) decode_stalls[i] = decode_stalls[i] + 1;
@@ -130,6 +126,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 		if (Checking_halt_for_all(continue_flag, CORE_NUM)) break;
 		sample_bus();
 		cycle_counter++;
+		printf("%d\n", cycle_counter);
 		
 	}
 	while (bus_is_busy_in_next_cycle()) {
@@ -200,6 +197,7 @@ void Reset_Reg(Reg* r)
 	r->opcode_MW = 0;
 	r->data = 0;
 	r->status = DONE;
+	r->sc_status = 0;
 	return;
 }
 
@@ -230,6 +228,7 @@ void Sampling_Reg(Reg* r_o, Reg* r_n)
 	r_o->opcode_MW = r_n->opcode_MW;
 	r_o->data = r_n->data;
 	r_o->status = r_n->status;
+	r_o->sc_status = r_n->sc_status;
 	return;
 }
 
@@ -288,13 +287,13 @@ void DECODE(Reg* r_o, Reg* r_n, int *stall_counter)  // needs to fix halt
 
 int Stall_Data_Hazard(Reg* r_o, Reg* r_n)  
 {
-	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) || r_n->opcode_DE==LW)
+	if ((r_n->opcode_DE >= ADD && r_n->opcode_DE <= SRL) || r_n->opcode_DE==LW || r_n->opcode_DE == LL) //without the LL before
 	{
 		if ((r_n->rs_DE>1) && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) &&Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		if ((r_n->rt_DE > 1) &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		return 0;
 	}
-	if ((r_n->opcode_DE >= BEQ && r_n->opcode_DE <= BGE) || r_n->opcode_DE==SW || r_n->opcode_DE == LL || r_n->opcode_DE == SC)
+	if ((r_n->opcode_DE >= BEQ && r_n->opcode_DE <= BGE) || r_n->opcode_DE==SW || r_n->opcode_DE == SC) //was with LL before
 	{
 		if ((r_n->rs_DE > 1) && (((r_n->rs_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rs_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rs_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
 		if ((r_n->rt_DE > 1) &&(((r_n->rt_DE == r_o->rd_DE) && Changing_opcode_list(r_o->opcode_DE)) || ((r_n->rt_DE == r_o->rd_EM) && Changing_opcode_list(r_o->opcode_EM)) || ((r_n->rt_DE == r_o->rd_MW) && Changing_opcode_list(r_o->opcode_MW)))) return 1;
@@ -313,7 +312,7 @@ int Changing_opcode_list(int opcode)
 {
 	if (opcode == -1) return 0;
 	if (opcode >= ADD && opcode <= SRL) return 1;
-	if (opcode == LW) return 1;
+	if (opcode == LW || opcode == LL || opcode == SC) return 1;
 	return 0;
 }
 
@@ -352,6 +351,7 @@ void BranchResulotion(Reg* r_o, Reg* r_n)
 void EXE(Reg* r_o, Reg* r_n)
 {
 	ALU(&r_n->aluout, r_o->alu0, r_o->alu1, r_o->opcode_DE);
+	//printf("%d\n", r_o->pc_DE);
 	r_n->rs_EM = r_o->rs_DE;
 	r_n->rt_EM = r_o->rt_DE;
 	r_n->rd_EM = r_o->rd_DE;
@@ -360,11 +360,10 @@ void EXE(Reg* r_o, Reg* r_n)
 	return;
 }
 
-void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag)
+void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag, int* instruction_counter)
 {
 	
-	//LoadLinked(int address, int* data, CORE* core, int prev_status, int* watch_flag);
-	//int StoreConditional(int address, int* new_data, CORE * core, int prev_status, int* watch_flag);
+	
 	
 	if (r_o->opcode_EM >= LW && r_o->opcode_EM <= SC)
 	{
@@ -377,6 +376,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag)
 				return;
 
 			}
+			else *instruction_counter = *instruction_counter + 1;
 			
 		}
 		if (r_o->opcode_EM == SW)
@@ -388,6 +388,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag)
 				*stall_counter = *stall_counter + 1;
 				return;
 			}
+			else *instruction_counter = *instruction_counter + 1;
 		}
 		if (r_o->opcode_EM == LL)
 		{
@@ -397,24 +398,26 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag)
 				*stall_counter = *stall_counter + 1;
 				return;
 			}
-			
+			else *instruction_counter = *instruction_counter + 1;
 		}
 		if (r_o->opcode_EM == SC)
 		{
-			if ((r_n->status = StoreConditional(r_o->aluout, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag)) != DONE)
+			if ((r_n->status = StoreConditional(r_o->aluout, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag)) != DONE) //add parameter &r_n->sc_status . 1 if succedd, 0 otherwise.
 			{
 
 				Stall_Memory(r_o, r_n);
 				*stall_counter = *stall_counter + 1;
 				return;
 			}
+			else *instruction_counter = *instruction_counter + 1;
+			
 		}
 
 
 	}
 	else {
 		r_n->data = r_o->aluout;
-		
+		if (r_o->opcode_EM != -1) *instruction_counter = *instruction_counter + 1;
 	} // in the case that no memory opcode
 	r_n->rs_MW = r_o->rs_EM;
 	r_n->rt_MW = r_o->rt_EM;
@@ -434,6 +437,7 @@ void Stall_Memory(Reg* r_o, Reg* r_n)
 	r_n->pc_DE = r_o->pc_DE;
 	r_n->pc_FD = r_o->pc_FD;
 	r_n->alu0 = r_o->alu0;
+	r_n->aluout = r_o->aluout; 
 	r_n->alu1 = r_o->alu1;
 	r_n->rd_EM = r_o->rd_EM;
 	r_n->rt_EM = r_o->rt_EM;
@@ -442,15 +446,16 @@ void Stall_Memory(Reg* r_o, Reg* r_n)
 	return;
 }
 
-int WB(Reg* r_o, Reg* r_n, int* instruction_counter)
+int WB(Reg* r_o, Reg* r_n) // , int* instruction_counter
 {
 	
-	if (r_o->opcode_MW != -1) *instruction_counter = *instruction_counter + 1;
+	//if (r_o->opcode_MW != -1) *instruction_counter = *instruction_counter + 1;
 	if (r_o->opcode_MW == 20) return 1;
-	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)|| r_o->opcode_MW==LW)
+	if ((r_o->opcode_MW >= ADD && r_o->opcode_MW <= SRL)|| r_o->opcode_MW==LW || r_o->opcode_MW == LL)
 	{
 		if (r_o->rd_MW!=0 && r_o->rd_MW != 1) r_n->reg[r_o->rd_MW] = r_o->data;
 	}
+	if (r_o->opcode_MW == SC) r_n->reg[r_o->rd_MW] = r_o->sc_status;
 	
 	return 0;
 	
@@ -491,10 +496,15 @@ void ALU(int* aluout, int alu0, int alu1, int opcode)
 		*aluout = (unsigned)alu0 >> alu1;
 		break;
 	case LW:
+		*aluout = alu0 + alu1;
+		break;
 	case LL:
+		*aluout = alu0 + alu1;
+		break;
 	case SW:
+		*aluout = alu0 + alu1;
+		break;
 	case SC:
-
 		*aluout = alu0 + alu1;
 		break;
 	
@@ -514,17 +524,17 @@ void printr(Reg* r)
 void Print_Core_Trace(FILE* f, Reg* r, int cycle)
 {
 	fprintf(f, "%d ", cycle);
-	if (r->pc_FF != -1) fprintf(f, "%03x ", r->pc_FF);
+	if (r->pc_FF != -1) fprintf(f, "%03X ", r->pc_FF);
 	else fprintf(f, "--- ");
-	if (r->pc_FD != -1) fprintf(f, "%03x ", r->pc_FD);
+	if (r->pc_FD != -1) fprintf(f, "%03X ", r->pc_FD);
 	else fprintf(f, "--- ");
-	if (r->pc_DE != -1) fprintf(f, "%03x ", r->pc_DE);
+	if (r->pc_DE != -1) fprintf(f, "%03X ", r->pc_DE);
 	else fprintf(f, "--- ");
-	if (r->pc_EM != -1) fprintf(f, "%03x ", r->pc_EM);
+	if (r->pc_EM != -1) fprintf(f, "%03X ", r->pc_EM);
 	else fprintf(f, "--- ");
-	if (r->pc_MW != -1) fprintf(f, "%03x ", r->pc_MW);
+	if (r->pc_MW != -1) fprintf(f, "%03X ", r->pc_MW);
 	else fprintf(f, "--- "); //print the old
-	fprintf(f, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x \n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
+	fprintf(f, "%08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X \n", r->reg[2], r->reg[3], r->reg[4], r->reg[5], r->reg[6], r->reg[7], r->reg[8], r->reg[9], r->reg[10], r->reg[11], r->reg[12], r->reg[13], r->reg[14], r->reg[15]);
 }
 
 void print_stats(int core_index, FILE* stats_file, int cycles, int instructions, int decode_stalls, int memory_stalls) {
@@ -533,5 +543,5 @@ void print_stats(int core_index, FILE* stats_file, int cycles, int instructions,
 	int read_miss;
 	int write_miss;
 	get_hits_and_miss(core_index ,&read_hit, &write_hit, &read_miss, &write_miss);
-	fprintf(stats_file, "cycles %d\ninstructions %d\nread hit %d\nwrite hit %d\nread_miss %d\nwrite_miss %d\ndecode_stall %d\nmem_stall %d\n", cycles+1, instructions-4, read_hit, write_hit, read_miss, write_miss, decode_stalls, memory_stalls);
+	fprintf(stats_file, "cycles %d\ninstructions %d\nread hit %d\nwrite hit %d\nread_miss %d\nwrite_miss %d\ndecode_stall %d\nmem_stall %d\n", cycles+1, cycles + 1- decode_stalls - memory_stalls -4, read_hit, write_hit, read_miss, write_miss, decode_stalls, memory_stalls);
 }

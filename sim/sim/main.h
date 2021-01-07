@@ -61,6 +61,7 @@ typedef struct {
 	int opcode_MW;
 	int data;
 	int status; //status of memory, 0 if avalable, 1 otherwise.
+	int sc_status;
 } Reg;
 
 
@@ -77,8 +78,8 @@ void DECODE(Reg* r_o, Reg* r_n, int* stall_counter);
 void EXE(Reg* r_o, Reg* r_n);
 void ALU(int* aluout, int alu0, int alu1, int opcode);
 void printr(Reg* r);
-void MEM(Reg* r_o, Reg* r_n, CORE* core, int* stall_counter, int* watch_flag);
-int WB(Reg* r_o, Reg* r_n, int* instruction_counter);
+void MEM(Reg* r_o, Reg* r_n, CORE* core, int* stall_counter, int* watch_flag, int* instruction_counter);
+int WB(Reg* r_o, Reg* r_n); // , int* instruction_counter
 void BranchResulotion(Reg* r_o, Reg* r_n);
 void Print_Core_Trace(FILE* f, Reg* r, int cycle);
 void Stall_Memory(Reg* r_o, Reg* r_n);
