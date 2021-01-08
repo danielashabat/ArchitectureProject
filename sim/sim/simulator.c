@@ -187,13 +187,16 @@ int LoadLinked(int address, int* data, CORE* core, int prev_status,int *watch_fl
 
 //StoreConditinal checks if others cores used SC before by looking on watch flag status.
 //notice new data is pointer
-int StoreConditional(int address, int *new_data, CORE* core, int prev_status, int *watch_flag) {
+int StoreConditional(int address, int *new_data, CORE* core, int prev_status, int *watch_flag, int * sc_status) {
 	int new_status;
-	if (*watch_flag == 1) {
-		set_watch_bit(core->id);//set the watch bit to '1' to notify other cores 
+	if (*watch_flag == 1) {\
+		if (prev_status == DONE) {//first time in SC
+			set_watch_bit(core->id);
+		}//set the watch bit to '1' to notify other cores 
 		new_status=StoreWord(address, *new_data, core, prev_status);
+		*sc_status = 1;//set R[rd] to 1 (success)
 		if (new_status == DONE) {
-			*new_data = 1;//set R[rd] to 1 (success)
+			printf("StoreConditional finished\n");
 			*watch_flag = 0;
 			unset_watch_bit();
 		}
@@ -201,7 +204,7 @@ int StoreConditional(int address, int *new_data, CORE* core, int prev_status, in
 		
 	}
 	else {
-		*new_data = 0;//set R[rd] to 0 (failure)
+		*sc_status = 0;//set R[rd] to 0 (failure)
 		printf("INFO: SC failed!\n");
 		return prev_status;
 	}

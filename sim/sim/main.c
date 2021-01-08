@@ -9,7 +9,7 @@
 
 #define FILE_LEN 20
 /*command line: sim.exe imem0.txt imem1.txt imem2.txt imem3.txt memin.txt memout.txt regout0.txt regout1.txt regout2.txt regout3.txt core0trace.txt core1trace.txt core2trace.txt core3trace.txt bustrace.txt dsram0.txt dsram1.txt dsram2.txt dsram3.txt tsram0.txt tsram1.txt tsram2.txt tsram3.txt stats0.txt stats1.txt stats2.txt stats3.txt
-*/
+remember to not copy sim.exe to debug!*/
 int main(int argc, char* argv[]) {
 	FILE* imem[CORE_NUM] = { NULL };
 	FILE* core_trace[CORE_NUM] = { NULL };
@@ -24,7 +24,9 @@ int main(int argc, char* argv[]) {
 	char file_name[FILE_LEN] = {0};
 	
 	if ((argc != ARGC_NUM) && (argc != 1)) {
-		printf("ERROR: there is %d input arguments. (need %d input arguments or 1 argument )\n", argc, ARGC_NUM);
+		
+		printf("ERROR: there is %d input arguments. (need %d input arguments or 1 argument )\n input arguments: ", argc, ARGC_NUM);
+		for (i = 0; i < argc; i++) printf("%s ", argv[i]);
 		return 1;
 	}
 
@@ -126,7 +128,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 		if (Checking_halt_for_all(continue_flag, CORE_NUM)) break;
 		sample_bus();
 		cycle_counter++;
-		printf("%d\n", cycle_counter);
+		//printf("%d\n", cycle_counter);
 		
 	}
 	while (bus_is_busy_in_next_cycle()) {
@@ -250,7 +252,7 @@ void DECODE(Reg* r_o, Reg* r_n, int *stall_counter)  // needs to fix halt
 {
 	r_n->reg[1] = r_o->inst & 0x00000fff;
 	r_o->reg[1] = r_o->inst & 0x00000fff; //test
-	//printf("doing DECODE to inst= %08x\n", r_o->inst);
+	printf("doing DECODE to inst= %08x\n", r_o->inst);
 	r_n->rt_DE = (r_o->inst & 0x0000f000) >> 12;
 	r_n->rs_DE = (r_o->inst & 0x000f0000) >>16 ;
 	r_n->rd_DE = (r_o->inst & 0x00f00000)>>20;
@@ -402,7 +404,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag, in
 		}
 		if (r_o->opcode_EM == SC)
 		{
-			if ((r_n->status = StoreConditional(r_o->aluout, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag)) != DONE) //add parameter &r_n->sc_status . 1 if succedd, 0 otherwise.
+			if ((r_n->status = StoreConditional(r_o->aluout, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag, &r_n->sc_status)) != DONE) //add parameter &r_n->sc_status . 1 if succedd, 0 otherwise.
 			{
 
 				Stall_Memory(r_o, r_n);
