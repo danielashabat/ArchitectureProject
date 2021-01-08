@@ -107,7 +107,7 @@ void Simulator(FILE* imem[],FILE *core_trace[],FILE *stats[],FILE *dsram[],FILE 
 	while (1)
 	{	
 		update_main_memory(cycle_counter, bustrace);
-		for ( i = 0; i < 1; i++)  // i < CORE_NUM
+		for ( i = 0; i < CORE_NUM; i++)  // i < CORE_NUM
 		{
 			if (continue_flag[i] == 0) {
 				//printf("cycle %d\n", cycle_counter);
