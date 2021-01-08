@@ -200,6 +200,7 @@ void Reset_Reg(Reg* r)
 	r->data = 0;
 	r->status = DONE;
 	r->sc_status = 0;
+	
 	return;
 }
 
@@ -231,6 +232,7 @@ void Sampling_Reg(Reg* r_o, Reg* r_n)
 	r_o->data = r_n->data;
 	r_o->status = r_n->status;
 	r_o->sc_status = r_n->sc_status;
+	
 	return;
 }
 
@@ -353,7 +355,7 @@ void BranchResulotion(Reg* r_o, Reg* r_n)
 void EXE(Reg* r_o, Reg* r_n)
 {
 	ALU(&r_n->aluout, r_o->alu0, r_o->alu1, r_o->opcode_DE);
-	//printf("%d\n", r_o->pc_DE);
+	printf("%d\n", r_o->pc_DE);
 	r_n->rs_EM = r_o->rs_DE;
 	r_n->rt_EM = r_o->rt_DE;
 	r_n->rd_EM = r_o->rd_DE;
@@ -365,13 +367,14 @@ void EXE(Reg* r_o, Reg* r_n)
 void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag, int* instruction_counter)
 {
 	
-	
+	int address=0;
 	
 	if (r_o->opcode_EM >= LW && r_o->opcode_EM <= SC)
 	{
+		if (r_o->status == DONE) address = r_o->aluout;
 		if (r_o->opcode_EM == LW)
 		{
-			if ((r_n->status =LoadWord(r_o->aluout, &r_n->data, core, r_o->status))!= DONE) //data not ready
+			if ((r_n->status =LoadWord(address, &r_n->data, core, r_o->status))!= DONE) //data not ready
 			{
 				Stall_Memory(r_o,r_n);
 				*stall_counter = *stall_counter + 1;
@@ -383,7 +386,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag, in
 		}
 		if (r_o->opcode_EM == SW)
 		{
-			if ((r_n->status = StoreWord(r_o->aluout, r_o->reg[r_o->rd_EM], core, r_o->status))!= DONE) 
+			if ((r_n->status = StoreWord(address, r_o->reg[r_o->rd_EM], core, r_o->status))!= DONE)
 			{
 				
 				Stall_Memory(r_o, r_n);
@@ -394,7 +397,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag, in
 		}
 		if (r_o->opcode_EM == LL)
 		{
-			if ((r_n->status = LoadLinked(r_o->aluout, &r_n->data, core, r_o->status, watch_flag)) != DONE) //data not ready
+			if ((r_n->status = LoadLinked(address, &r_n->data, core, r_o->status, watch_flag)) != DONE) //data not ready
 			{
 				Stall_Memory(r_o, r_n);
 				*stall_counter = *stall_counter + 1;
@@ -404,7 +407,7 @@ void MEM(Reg* r_o, Reg* r_n, CORE *core, int *stall_counter, int *watch_flag, in
 		}
 		if (r_o->opcode_EM == SC)
 		{
-			if ((r_n->status = StoreConditional(r_o->aluout, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag, &r_n->sc_status)) != DONE) //add parameter &r_n->sc_status . 1 if succedd, 0 otherwise.
+			if ((r_n->status = StoreConditional(address, &r_o->reg[r_o->rd_EM], core, r_o->status, watch_flag, &r_n->sc_status)) != DONE) //add parameter &r_n->sc_status . 1 if succedd, 0 otherwise.
 			{
 
 				Stall_Memory(r_o, r_n);
@@ -439,12 +442,16 @@ void Stall_Memory(Reg* r_o, Reg* r_n)
 	r_n->pc_DE = r_o->pc_DE;
 	r_n->pc_FD = r_o->pc_FD;
 	r_n->alu0 = r_o->alu0;
-	r_n->aluout = r_o->aluout; 
+	//r_n->aluout = r_o->aluout; 
 	r_n->alu1 = r_o->alu1;
 	r_n->rd_EM = r_o->rd_EM;
 	r_n->rt_EM = r_o->rt_EM;
 	r_n->rs_EM = r_o->rs_EM;
 	r_n->opcode_EM = r_o->opcode_EM;
+	r_n->opcode_DE = r_o->opcode_DE;  //test
+	r_n->rd_DE = r_o->rd_DE;
+	r_n->rs_DE = r_o->rs_DE;
+	r_n->rt_DE = r_o->rt_DE;
 	return;
 }
 

@@ -62,6 +62,7 @@ typedef struct {
 	int data;
 	int status; //status of memory, 0 if avalable, 1 otherwise.
 	int sc_status;
+	
 } Reg;
 
 
