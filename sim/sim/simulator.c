@@ -205,7 +205,7 @@ int StoreConditional(int address, int *new_data, CORE* core, int prev_status, in
 	}
 	else {
 		*sc_status = 0;//set R[rd] to 0 (failure)
-		printf("INFO: SC failed!\n");
+		printf("INFO:core: %d failed to SC !\n",core->id);
 		return prev_status;
 	}
 }
