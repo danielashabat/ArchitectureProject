@@ -10,7 +10,7 @@
 
 /*********************MACROS*****************/
 typedef enum { WAITING = 0, DONE = 1, CACHE_MISS = 2 , CONFLICT_MISS=3} MEM_STATUS;
-#define CORE_NUM 1//number of cores to run
+#define CORE_NUM 4//number of cores to run
 
 /*********************STRUCTS DECLARATION	*****************/
 

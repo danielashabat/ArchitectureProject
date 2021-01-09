@@ -254,8 +254,12 @@ void FETCH(FILE *imem, Reg* r_o, Reg* r_n)
 
 void DECODE(Reg* r_o, Reg* r_n, int *stall_counter)  // needs to fix halt 
 {
-	r_n->reg[1] = r_o->inst & 0x00000fff;
-	r_o->reg[1] = r_o->inst & 0x00000fff; //test
+	int imm = r_o->inst & 0x00000fff;
+	
+	//r_n->reg[1] = r_o->inst & 0x00000fff;
+	//r_o->reg[1] = r_o->inst & 0x00000fff; //test
+	r_n->reg[1] = SIGNED_EXT_IMM(imm);
+	r_o->reg[1] = SIGNED_EXT_IMM(imm);
 	//printf("doing DECODE to inst= %08x\n", r_o->inst);
 	r_n->rt_DE = (r_o->inst & 0x0000f000) >> 12;
 	r_n->rs_DE = (r_o->inst & 0x000f0000) >>16 ;
@@ -358,6 +362,7 @@ void EXE(Reg* r_o, Reg* r_n)
 {
 	ALU(&r_n->aluout, r_o->alu0, r_o->alu1, r_o->opcode_DE);
 	//printf("%d\n", r_o->pc_DE);
+	
 	r_n->rs_EM = r_o->rs_DE;
 	r_n->rt_EM = r_o->rt_DE;
 	r_n->rd_EM = r_o->rd_DE;

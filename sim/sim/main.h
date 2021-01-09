@@ -65,7 +65,7 @@ typedef struct {
 	int address;
 } Reg;
 
-
+#define SIGNED_EXT_IMM(IMM) ((IMM>>11)&1) ? (int) (IMM|0xFFFFF000) : IMM;
 
 int Stall_Data_Hazard(Reg* r_o, Reg* r_n);
 int Changing_opcode_list(int opcode);
