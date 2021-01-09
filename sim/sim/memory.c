@@ -116,7 +116,7 @@ void print_memout(FILE* memout) {
 void write_block_to_main_memory(CACHE* cache, int index) {
 	int data = cache->DSRAM[index];
 	int tag_bits = TAG_BITS(cache->TSRAM[index]);
-	int address = tag_bits << 12 | index;
+	int address = (tag_bits << 8 )| index;
 	Flush(address, data, cache->id);
 }
 
