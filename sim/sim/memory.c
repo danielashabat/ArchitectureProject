@@ -84,14 +84,14 @@ void read_watch_bit(int *bit,int *origid) {
 }
 
 void set_watch_bit(int origid) {
-	printf("setting watch bit to 1 from core: %d!\n",origid);
+	//printf("setting watch bit to 1 from core: %d!\n",origid);
 	watch_bit = 1;
 	watch_origid = origid;
 }
 
 void unset_watch_bit() {
 	watch_bit = 0;
-	printf("setting watch bit to 0!\n");
+	//printf("setting watch bit to 0!\n");
 }
 
 
