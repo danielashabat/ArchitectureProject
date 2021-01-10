@@ -128,10 +128,7 @@ void InitialCore(CORE *core,int id_core) {
 	reset_cache(&core->cache, id_core);
 }
 
-/*if the core see BusRdx/BusRd from another core. and have the most updated data of the requested address in it's cache
-in MODIFIED mode, than abort the requset and flush the data to the core that sent the request
-in addition, if the core see BusRdx request from another core of an address that in his cache in SHARE mode don't help the other core and invalidate the block
-this function need to be for every core and need to be update every cycle*/
+
 int Snooping(CORE* core) {
 	int bus_origid, bus_cmd, bus_addr, bus_data;
 	int data, mode,index;
